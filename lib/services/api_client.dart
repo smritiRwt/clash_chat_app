@@ -1,5 +1,5 @@
+import 'package:chat_app/utils/constants.dart';
 import 'package:dio/dio.dart';
-
 /// API Client Service using Dio
 /// Handles all HTTP requests with centralized error handling
 class ApiClient {
@@ -7,10 +7,7 @@ class ApiClient {
   factory ApiClient() => _instance;
 
   late Dio _dio;
-  // static const String baseUrl =
-  //     'https://clashchatbe-production.up.railway.app/api';
-  static const String baseUrl =
-      "https://b13ab25653be.ngrok-free.app/api";
+  static const String baseUrl = '${Constants.baseUrl}/api';
 
   ApiClient._internal() {
     _dio = Dio(
