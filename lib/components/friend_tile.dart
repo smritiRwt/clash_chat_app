@@ -11,6 +11,7 @@ class FriendTile extends StatelessWidget {
   final VoidCallback? onAddFriend;
   final VoidCallback? onCancelRequest;
   final bool showAddButton;
+  final bool canUserChat;
 
   const FriendTile({
     super.key,
@@ -19,6 +20,7 @@ class FriendTile extends StatelessWidget {
     this.onAddFriend,
     this.onCancelRequest,
     this.showAddButton = false,
+    this.canUserChat = false,
   });
 
   FriendsController get controller => Get.find<FriendsController>();
@@ -195,7 +197,7 @@ class FriendTile extends StatelessWidget {
       }
 
       // Default: show message button for friends
-      if (friend.friendshipStatus == 'friends') {
+      if (canUserChat || friend.friendshipStatus == 'friends') {
         return Container(
           width: 36,
           height: 36,

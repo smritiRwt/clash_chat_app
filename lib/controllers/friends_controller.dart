@@ -95,7 +95,7 @@ class FriendsController extends GetxController {
       }
 
       // Load data
-      await getFriends();
+      await getAllUsers();
       await getPendingRequests();
       await getSentRequests();
     } catch (e) {
@@ -118,9 +118,75 @@ class FriendsController extends GetxController {
     }
   }
 
-  /// Get friends list
+  // Get Friends List
   Future<void> getFriends() async {
+     try {
+      friends.clear();
+      // Reset error
+      errorMessage.value = '';
+      isLoading.value = true;
+
+      // Get access token
+      final token = await getAccessToken();
+      if (token == null) {
+        isLoading.value = false;
+        return;
+      }
+
+      // Ensure token is set in API client
+      _apiClient.setAuthToken(token);
+
+      // Call API with pagination parameters
+      final response = await _apiClient.getRequest(
+        '/friends',
+        queryParameters: {'page': currentPage.value, 'limit': pageLimit.value},
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      // Parse response - New structure with data array and pagination
+      if (response['data'] != null) {
+        final dataList = (response['data']['data'] as List)
+            .map((json) => FriendModel.fromJson(json as Map<String, dynamic>))
+            .toList();
+        final paginationData = response['pagination'];
+        print(dataList);
+
+        if (dataList.isNotEmpty) {
+          if (currentPage.value == 1) {
+            friends.value = dataList;
+          } else {
+            friends.addAll(dataList);
+          }
+
+          // Parse pagination
+          if (paginationData != null) {
+            pagination.value = PaginationModel.fromJson(
+              paginationData as Map<String, dynamic>,
+            );
+          }
+
+          print('✅ Friends loaded: ${friends.length}');
+        } else {
+          friends.value = [];
+          print('⚠️ No data in response');
+        }
+      } else {
+        errorMessage.value = response['message'] ?? 'Failed to load friends';
+        friends.value = [];
+      }
+
+      isLoading.value = false;
+    } catch (e) {
+      errorMessage.value = e.toString();
+      isLoading.value = false;
+      print('❌ Error getting friends: $e');
+    }
+  }
+
+  /// Get Users list
+  Future<void> getAllUsers() async {
     try {
+      friends.clear();
       // Reset error
       errorMessage.value = '';
       isLoading.value = true;
@@ -190,7 +256,7 @@ class FriendsController extends GetxController {
 
       // If query is empty, get all friends
       if (query.trim().isEmpty) {
-        await getFriends();
+        await getAllUsers();
         return;
       }
 
@@ -249,24 +315,32 @@ class FriendsController extends GetxController {
   }
 
   /// Refresh friends list
+  Future<void> refreshAllUsers() async {
+    searchQuery.value = '';
+    currentPage.value = 1;
+    await getAllUsers();
+  }
+
   Future<void> refreshFriends() async {
     searchQuery.value = '';
     currentPage.value = 1;
     await getFriends();
   }
 
+  
+
   /// Clear search
   void clearSearch() {
     searchQuery.value = '';
     currentPage.value = 1;
-    getFriends();
+    getAllUsers();
   }
 
   /// Load next page
   Future<void> loadNextPage() async {
     if (pagination.value?.hasNextPage == true && !isLoading.value) {
       currentPage.value++;
-      await getFriends();
+      await getAllUsers();
     }
   }
 
@@ -276,7 +350,7 @@ class FriendsController extends GetxController {
         !isLoading.value &&
         currentPage.value > 1) {
       currentPage.value--;
-      await getFriends();
+      await getAllUsers();
     }
   }
 
@@ -286,7 +360,7 @@ class FriendsController extends GetxController {
         page <= (pagination.value?.totalPages ?? 1) &&
         !isLoading.value) {
       currentPage.value = page;
-      await getFriends();
+      await getAllUsers();
     }
   }
 
@@ -366,7 +440,7 @@ class FriendsController extends GetxController {
         print('✅ Friend request accepted');
 
         // Refresh lists
-        await getFriends();
+        await getAllUsers();
         await getPendingRequests();
 
         Get.snackbar(
@@ -416,7 +490,7 @@ class FriendsController extends GetxController {
         print('✅ Friend removed');
 
         // Refresh lists
-        await getFriends();
+        await getAllUsers();
         await getPendingRequests();
 
         Get.snackbar(
@@ -468,7 +542,7 @@ class FriendsController extends GetxController {
         print('✅ Friend request sent');
 
         // Refresh friends list
-        await getFriends();
+        await getAllUsers();
         await getSentRequests();
 
         Get.snackbar(
@@ -535,7 +609,7 @@ class FriendsController extends GetxController {
         print('✅ Friend request sent');
 
         // Refresh friends list
-        await getFriends();
+        await getAllUsers();
 
         Get.snackbar(
           'Success',
