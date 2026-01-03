@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/chat_message_model.dart';
+import '../services/socket_service.dart';
 
 /// Chat Controller
 /// Manages chat messages and interactions - 100% business logic
 class ChatController extends GetxController {
+  SocketService socketService = SocketService();
   // Friend info from arguments
   late String friendId;
   late String friendName;
@@ -101,6 +103,8 @@ class ChatController extends GetxController {
 
     // Simulate friend response after 2 seconds (for demo purposes)
     _simulateFriendResponse();
+
+    socketService.sendMessage(friendId, newMessage.message);
   }
 
   /// Simulate friend response (for UI demo only)
@@ -116,7 +120,8 @@ class ChatController extends GetxController {
         'Perfect!',
       ];
 
-      final randomResponse = responses[DateTime.now().second % responses.length];
+      final randomResponse =
+          responses[DateTime.now().second % responses.length];
 
       final friendMessage = ChatMessage(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -172,11 +177,7 @@ class ChatController extends GetxController {
   void onEmojiSelected(String emoji) {
     final text = messageController.text;
     final selection = messageController.selection;
-    final newText = text.replaceRange(
-      selection.start,
-      selection.end,
-      emoji,
-    );
+    final newText = text.replaceRange(selection.start, selection.end, emoji);
     messageController.value = TextEditingValue(
       text: newText,
       selection: TextSelection.collapsed(
