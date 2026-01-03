@@ -40,7 +40,10 @@ class PendingRequestTile extends StatelessWidget {
         ),
         child: ListTile(
           dense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 4,
+          ),
           leading: Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
@@ -123,14 +126,18 @@ class PendingRequestTile extends StatelessWidget {
                         padding: EdgeInsets.all(8.0),
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                         ),
                       )
                     : IconButton(
                         padding: EdgeInsets.zero,
                         iconSize: 20,
                         icon: const Icon(Icons.check, color: Colors.white),
-                        onPressed: (isAccepting || isRejecting) ? null : onAccept,
+                        onPressed: (isAccepting || isRejecting)
+                            ? null
+                            : onAccept,
                       ),
               ),
               const SizedBox(width: 8),
@@ -154,7 +161,9 @@ class PendingRequestTile extends StatelessWidget {
                         padding: EdgeInsets.zero,
                         iconSize: 20,
                         icon: const Icon(Icons.close, color: Colors.red),
-                        onPressed: (isAccepting || isRejecting) ? null : onReject,
+                        onPressed: (isAccepting || isRejecting)
+                            ? null
+                            : onReject,
                       ),
               ),
             ],

@@ -5,10 +5,7 @@ class FriendListResponseModel {
   final List<FriendModel> data;
   final PaginationModel pagination;
 
-  FriendListResponseModel({
-    required this.data,
-    required this.pagination,
-  });
+  FriendListResponseModel({required this.data, required this.pagination});
 
   factory FriendListResponseModel.fromJson(Map<String, dynamic> json) {
     return FriendListResponseModel(

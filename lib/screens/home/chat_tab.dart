@@ -1,9 +1,30 @@
 import 'package:flutter/material.dart';
+import '../../components/skeleton_loader.dart';
 
 /// Chat Tab
 /// Displays list of chats - placeholder UI
-class ChatTab extends StatelessWidget {
+class ChatTab extends StatefulWidget {
   const ChatTab({super.key});
+
+  @override
+  State<ChatTab> createState() => _ChatTabState();
+}
+
+class _ChatTabState extends State<ChatTab> {
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Simulate loading
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,18 +46,20 @@ class ChatTab extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: 10,
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        itemBuilder: (context, index) {
-          return _buildChatTile(
-            name: 'User ${index + 1}',
-            message: 'Last message preview...',
-            time: '${index + 1}h ago',
-            unreadCount: index % 3 == 0 ? index + 1 : 0,
-          );
-        },
-      ),
+      body: _isLoading
+          ? const ChatsListSkeleton()
+          : ListView.builder(
+              itemCount: 10,
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              itemBuilder: (context, index) {
+                return _buildChatTile(
+                  name: 'User ${index + 1}',
+                  message: 'Last message preview...',
+                  time: '${index + 1}h ago',
+                  unreadCount: index % 3 == 0 ? index + 1 : 0,
+                );
+              },
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           // TODO: Implement new chat

@@ -9,12 +9,9 @@ import '../controllers/auth_controller.dart';
 class LoginScreen extends StatelessWidget {
   LoginScreen({super.key});
 
-
-  
-
   @override
   Widget build(BuildContext context) {
-    final  controller=Get.put(AuthController());
+    final controller = Get.put(AuthController());
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),

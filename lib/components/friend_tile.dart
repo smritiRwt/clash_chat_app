@@ -47,7 +47,7 @@ class FriendTile extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
-                  colors: friend.status=="online"
+                  colors: friend.status == "online"
                       ? [const Color(0xFF4A90E2), const Color(0xFF6C63FF)]
                       : [Colors.grey[400]!, Colors.grey[500]!],
                   begin: Alignment.topLeft,
@@ -56,7 +56,7 @@ class FriendTile extends StatelessWidget {
                 boxShadow: [
                   BoxShadow(
                     color:
-                        (friend.status=="online"
+                        (friend.status == "online"
                                 ? const Color(0xFF4A90E2)
                                 : Colors.grey)
                             .withOpacity(0.3),
@@ -91,7 +91,7 @@ class FriendTile extends StatelessWidget {
                 width: 12,
                 height: 12,
                 decoration: BoxDecoration(
-                  color: friend.status=="online"
+                  color: friend.status == "online"
                       ? const Color(0xFF43A047)
                       : Colors.grey[400],
                   shape: BoxShape.circle,
@@ -99,7 +99,7 @@ class FriendTile extends StatelessWidget {
                   boxShadow: [
                     BoxShadow(
                       color:
-                          (friend.status=="online"
+                          (friend.status == "online"
                                   ? const Color(0xFF43A047)
                                   : Colors.grey)
                               .withOpacity(0.5),
@@ -120,7 +120,7 @@ class FriendTile extends StatelessWidget {
             color: Color(0xFF1A1A1A),
           ),
         ),
-       
+
         trailing: _buildTrailingWidget(),
         onTap: onTap,
       ),
@@ -158,7 +158,9 @@ class FriendTile extends StatelessWidget {
       // }
 
       // Show add button for search results or non-friends
-      if (showAddButton && friend.friendshipStatus != 'friends'&&friend.friendshipStatus != 'request_sent') {
+      if (showAddButton &&
+          friend.friendshipStatus != 'friends' &&
+          friend.friendshipStatus != 'request_sent') {
         return Container(
           width: 36,
           height: 36,
@@ -193,32 +195,32 @@ class FriendTile extends StatelessWidget {
       }
 
       // Default: show message button for friends
-      if(friend.friendshipStatus == 'friends'){
-      return Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: const Color(0xFF4A90E2).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: IconButton(
-          padding: EdgeInsets.zero,
-          iconSize: 20,
-          icon: const Icon(
-            Icons.message_outlined,
-            color: Color(0xFF4A90E2),
+      if (friend.friendshipStatus == 'friends') {
+        return Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: const Color(0xFF4A90E2).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
           ),
-          onPressed: () {
-            // Navigate to chat screen with friend data
-            Get.toNamed('/chat', arguments: {
-              'friendId': friend.id,
-              'friendName': friend.username,
-            });
-          },
-        ),
-      );
-    }
-    return SizedBox.shrink();
+          child: IconButton(
+            padding: EdgeInsets.zero,
+            iconSize: 20,
+            icon: const Icon(Icons.message_outlined, color: Color(0xFF4A90E2)),
+            onPressed: () {
+              // Navigate to chat screen with friend data
+              Get.toNamed(
+                '/chat',
+                arguments: {
+                  'friendId': friend.id,
+                  'friendName': friend.username,
+                },
+              );
+            },
+          ),
+        );
+      }
+      return SizedBox.shrink();
     });
   }
 }

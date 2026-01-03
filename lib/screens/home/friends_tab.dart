@@ -4,6 +4,7 @@ import '../../controllers/friends_controller.dart';
 import '../../components/friend_tile.dart';
 import '../../components/pending_request_tile.dart';
 import '../../components/sent_request_tile.dart';
+import '../../components/skeleton_loader.dart';
 
 /// Friends Tab
 /// Displays list of friends - 100% dumb UI
@@ -14,9 +15,10 @@ class FriendsTab extends StatefulWidget {
   State<FriendsTab> createState() => _FriendsTabState();
 }
 
-class _FriendsTabState extends State<FriendsTab> with SingleTickerProviderStateMixin {
+class _FriendsTabState extends State<FriendsTab>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
+
   FriendsController get controller {
     try {
       return Get.find<FriendsController>();
@@ -29,7 +31,7 @@ class _FriendsTabState extends State<FriendsTab> with SingleTickerProviderStateM
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    
+
     // Add listener to refresh data when tab changes
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
@@ -130,8 +132,7 @@ class _FriendsTabState extends State<FriendsTab> with SingleTickerProviderStateM
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
-                                  controller.pendingRequests.length
-                                      .toString(),
+                                  controller.pendingRequests.length.toString(),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 10,
@@ -162,8 +163,7 @@ class _FriendsTabState extends State<FriendsTab> with SingleTickerProviderStateM
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
-                                  controller.sentRequests.length
-                                      .toString(),
+                                  controller.sentRequests.length.toString(),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 10,
@@ -210,9 +210,9 @@ class _FriendsTabState extends State<FriendsTab> with SingleTickerProviderStateM
         });
       }
 
-      // Loading state
+      // Loading state - show skeleton
       if (controller.isLoading.value && controller.friends.isEmpty) {
-        return const Center(child: CircularProgressIndicator());
+        return const FriendsListSkeleton();
       }
 
       // Empty state
@@ -274,9 +274,9 @@ class _FriendsTabState extends State<FriendsTab> with SingleTickerProviderStateM
 
   Widget _buildRequestsTab() {
     return Obx(() {
-      // Loading state
+      // Loading state - show skeleton
       if (controller.isRequestsLoading.value) {
-        return const Center(child: CircularProgressIndicator());
+        return const FriendsListSkeleton();
       }
 
       // Empty state
@@ -326,9 +326,9 @@ class _FriendsTabState extends State<FriendsTab> with SingleTickerProviderStateM
 
   Widget _buildSentTab() {
     return Obx(() {
-      // Loading state
+      // Loading state - show skeleton
       if (controller.isSentRequestsLoading.value) {
-        return const Center(child: CircularProgressIndicator());
+        return const FriendsListSkeleton();
       }
 
       // Empty state
@@ -367,8 +367,7 @@ class _FriendsTabState extends State<FriendsTab> with SingleTickerProviderStateM
             final request = controller.sentRequests[index];
             return SentRequestTile(
               request: request,
-              onCancel: () => controller.cancelSentRequest(
-                request.id),
+              onCancel: () => controller.cancelSentRequest(request.id),
             );
           },
         ),

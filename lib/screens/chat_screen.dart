@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import '../controllers/chat_controller.dart';
 import '../components/message_bubble.dart';
+import '../components/skeleton_loader.dart';
 
 /// Chat Screen
 /// One-to-one chat interface - 100% dumb UI
@@ -130,6 +131,12 @@ class ChatScreen extends StatelessWidget {
             child: GestureDetector(
               onTap: () => controller.hideEmojiPicker(),
               child: Obx(() {
+                // Loading state - show skeleton
+                if (controller.isLoading.value && controller.messages.isEmpty) {
+                  return const MessagesListSkeleton();
+                }
+
+                // Empty state
                 if (controller.messages.isEmpty) {
                   return Center(
                     child: Column(
@@ -236,10 +243,7 @@ class ChatScreen extends StatelessWidget {
 
                   // Attach button
                   IconButton(
-                    icon: Icon(
-                      Icons.attach_file,
-                      color: Colors.grey[600],
-                    ),
+                    icon: Icon(Icons.attach_file, color: Colors.grey[600]),
                     onPressed: () {
                       Get.snackbar(
                         "Coming Soon",

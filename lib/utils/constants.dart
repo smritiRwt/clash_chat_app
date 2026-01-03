@@ -7,5 +7,5 @@ class Constants {
   static const String introImgThree = 'assets/images/intro_3.png';
 
   static const Color buttonColor = Color(0xFF4887EE);
-  static const String baseUrl ='https://clashchatbe-production.up.railway.app';
+  static const String baseUrl = 'https://clashchatbe-production.up.railway.app';
 }

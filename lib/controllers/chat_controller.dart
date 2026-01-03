@@ -1,3 +1,6 @@
+import 'package:chat_app/models/chat_response_model/chat_response_model.dart';
+import 'package:chat_app/services/api_client.dart';
+import 'package:chat_app/services/db_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/chat_message_model.dart';
@@ -10,6 +13,8 @@ class ChatController extends GetxController {
   // Friend info from arguments
   late String friendId;
   late String friendName;
+    final ApiClient _apiClient = ApiClient();
+
 
   // Observable state
   final RxList<ChatMessage> messages = <ChatMessage>[].obs;
@@ -34,8 +39,11 @@ class ChatController extends GetxController {
       friendId = args['friendId'] ?? '';
       friendName = args['friendName'] ?? 'Unknown';
 
-      // Load dummy messages for UI demonstration
-      _loadDummyMessages();
+      // Set up socket listener for incoming messages
+      _setupSocketListeners();
+
+      // Load messages from API
+      _loadChatMessages();
     } catch (e) {
       print('❌ Error initializing chat: $e');
       friendId = '';
@@ -43,38 +51,52 @@ class ChatController extends GetxController {
     }
   }
 
-  /// Load dummy messages for UI demonstration
-  void _loadDummyMessages() {
-    messages.value = [
-      ChatMessage(
-        id: '1',
-        message: 'Hey! How are you?',
-        isMe: false,
-        time: DateTime.now().subtract(const Duration(minutes: 10)),
-        senderName: friendName,
-      ),
-      ChatMessage(
-        id: '2',
-        message: 'I\'m doing great! Thanks for asking 😊',
-        isMe: true,
-        time: DateTime.now().subtract(const Duration(minutes: 9)),
-        senderName: 'Me',
-      ),
-      ChatMessage(
-        id: '3',
-        message: 'That\'s awesome! Want to catch up later?',
-        isMe: false,
-        time: DateTime.now().subtract(const Duration(minutes: 8)),
-        senderName: friendName,
-      ),
-      ChatMessage(
-        id: '4',
-        message: 'Sure! Let me know when you\'re free',
-        isMe: true,
-        time: DateTime.now().subtract(const Duration(minutes: 7)),
-        senderName: 'Me',
-      ),
-    ];
+  /// Set up socket listeners for real-time message updates
+  void _setupSocketListeners() {
+    // Listen for incoming messages
+    socketService.onMessageReceived = (data) {
+      print('📩 Received message in ChatController: $data');
+      _handleIncomingMessage(data);
+    };
+
+    // Listen for message sent confirmation
+    socketService.onMessageSent = (data) {
+      print('✅ Message sent confirmation: $data');
+      // Optionally update message status to "sent"
+    };
+  }
+
+  /// Handle incoming message from socket
+  void _handleIncomingMessage(Map<String, dynamic> data) {
+    try {
+      // Parse the incoming message data
+      final messageId = data['_id'] ?? data['id'] ?? DateTime.now().millisecondsSinceEpoch.toString();
+      final content = data['content'] ?? data['message'] ?? '';
+      final senderId = data['sender']?['_id'] ?? data['sender']?['id'] ?? data['senderId'] ?? '';
+      final senderName = data['sender']?['username'] ?? data['sender']?['name'] ?? data['senderName'] ?? friendName;
+      final timestamp = data['createdAt'] ?? data['timestamp'];
+      
+      // Only add message if it's from the current chat friend
+      if (senderId == friendId) {
+        final newMessage = ChatMessage(
+          id: messageId,
+          message: content,
+          isMe: false, // Incoming message is from friend
+          time: timestamp != null ? DateTime.parse(timestamp) : DateTime.now(),
+          senderName: senderName,
+        );
+
+        // Add to messages list
+        messages.add(newMessage);
+        
+        // Auto-scroll to bottom
+        _scrollToBottom();
+        
+        print('✅ Message added to list: ${newMessage.message}');
+      }
+    } catch (e) {
+      print('❌ Error handling incoming message: $e');
+    }
   }
 
   /// Send a new message
@@ -101,40 +123,75 @@ class ChatController extends GetxController {
     // Auto-scroll to bottom
     _scrollToBottom();
 
-    // Simulate friend response after 2 seconds (for demo purposes)
-    _simulateFriendResponse();
-
+    // Send message via socket
     socketService.sendMessage(friendId, newMessage.message);
   }
 
-  /// Simulate friend response (for UI demo only)
-  void _simulateFriendResponse() {
-    Future.delayed(const Duration(seconds: 2), () {
-      final responses = [
-        'Got it! 👍',
-        'Sounds good!',
-        'Sure thing!',
-        'Absolutely!',
-        'I agree!',
-        'That makes sense',
-        'Perfect!',
-      ];
+ /// Load chat messages from API
+Future<void> _loadChatMessages() async {
+  try {
+    isLoading.value = true;
+    
+    final token = await getAccessToken();
+    if (token == null) {
+      print('❌ No access token found');
+      isLoading.value = false;
+      return;
+    }
 
-      final randomResponse =
-          responses[DateTime.now().second % responses.length];
+    // Ensure token is set in API client
+    _apiClient.setAuthToken(token);
+    
+    // Fetch chat messages from API
+    final response = await _apiClient.getRequest(
+      '/messages/$friendId',
+      queryParameters: {'skip': 0, 'limit': 50},
+      headers: {'Authorization': 'Bearer $token'},
+    );
 
-      final friendMessage = ChatMessage(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        message: randomResponse,
-        isMe: false,
-        time: DateTime.now(),
-        senderName: friendName,
-      );
+    print('📥 Response Data: $response');
 
-      messages.add(friendMessage);
-      _scrollToBottom();
-    });
+    // Parse response - data is nested inside 'data' object
+    if (response['data'] != null && response['data']['messages'] != null) {
+      final chatResponseModel = ChatResponseModel.fromJson(response['data']);
+      
+      if (chatResponseModel.messages != null && chatResponseModel.messages!.isNotEmpty) {
+        // Convert API messages to ChatMessage model
+        messages.value = chatResponseModel.messages!.map((apiMessage) {
+          // Determine if message is from current user
+          final isMe = apiMessage.sender?.id != friendId;
+          
+          return ChatMessage(
+            id: apiMessage.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+            message: apiMessage.content ?? '',
+            isMe: isMe,
+            time: apiMessage.createdAt ?? DateTime.now(),
+            senderName: isMe ? 'Me' : (apiMessage.sender?.username ?? friendName),
+          );
+        }).toList();
+        
+        print('✅ Loaded ${messages.length} chat messages');
+        
+        // Store unread count if needed
+        if (chatResponseModel.unreadCount != null) {
+          print('📬 Unread messages: ${chatResponseModel.unreadCount}');
+        }
+      } else {
+        messages.value = [];
+        print('⚠️ No messages found');
+      }
+    } else {
+      messages.value = [];
+      print('⚠️ Invalid response format');
+    }
+    
+    isLoading.value = false;
+  } catch (e) {
+    print('❌ Error loading chat messages: $e');
+    isLoading.value = false;
+    messages.value = [];
   }
+}
 
   /// Scroll to bottom of chat
   void _scrollToBottom() {
@@ -147,6 +204,18 @@ class ChatController extends GetxController {
         );
       }
     });
+  }
+
+    /// Get access token from SQLite
+  Future<String?> getAccessToken() async {
+    try {
+      DBHelper dbHelper = DBHelper();
+      final token = await dbHelper.getAccessToken();
+      return token;
+    } catch (e) {
+      print('❌ Error getting access token: $e');
+      return null;
+    }
   }
 
   /// Scroll to bottom on init
@@ -177,17 +246,25 @@ class ChatController extends GetxController {
   void onEmojiSelected(String emoji) {
     final text = messageController.text;
     final selection = messageController.selection;
-    final newText = text.replaceRange(selection.start, selection.end, emoji);
+    
+    // Handle invalid selection positions
+    final start = selection.start >= 0 ? selection.start : text.length;
+    final end = selection.end >= 0 ? selection.end : text.length;
+    
+    final newText = text.replaceRange(start, end, emoji);
     messageController.value = TextEditingValue(
       text: newText,
       selection: TextSelection.collapsed(
-        offset: selection.start + emoji.length,
+        offset: start + emoji.length,
       ),
     );
   }
 
   @override
   void onClose() {
+    // Clear socket callbacks when controller is disposed
+    socketService.onMessageReceived = null;
+    socketService.onMessageSent = null;
     messageController.dispose();
     scrollController.dispose();
     messageFocusNode.dispose();

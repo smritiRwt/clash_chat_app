@@ -373,14 +373,14 @@ class AuthController extends GetxController {
 
       // Refresh the token
       final success = await this.refreshToken();
-      
+
       if (!success) {
         // Token refresh failed - clear tokens and redirect to login
         print('❌ Token refresh failed - logging out');
         await _dbHelper.deleteAuthTokens(user.id);
         _apiClient.removeAuthToken();
         currentUser.value = null;
-        
+
         // Navigate to login
         Get.offAllNamed('/login');
         return false;
@@ -403,8 +403,6 @@ class AuthController extends GetxController {
     // loginPasswordController.dispose();
     super.onClose();
   }
-
-
 
   /// Handle login
   Future<void> handleLogin() async {

@@ -1,5 +1,6 @@
 import 'package:chat_app/utils/constants.dart';
 import 'package:dio/dio.dart';
+
 /// API Client Service using Dio
 /// Handles all HTTP requests with centralized error handling
 class ApiClient {

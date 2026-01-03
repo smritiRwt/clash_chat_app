@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:chat_app/utils/constants.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
@@ -26,6 +28,7 @@ class SocketService {
 
   /// Connect to socket server with access token
   void connect(String accessToken) {
+    log('Connecting to socket with access token: $accessToken');
     if (_isConnected && _socket != null) {
       print('⚠️ Socket already connected');
       return;
@@ -134,6 +137,7 @@ class SocketService {
     String content, {
     String messageType = 'text',
   }) {
+    log('Sending message to: $receiverId');
     if (!_isConnected || _socket == null) {
       print('❌ Socket not connected. Cannot send message.');
       onError?.call('Socket not connected');

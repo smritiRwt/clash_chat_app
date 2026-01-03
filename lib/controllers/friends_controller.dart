@@ -423,7 +423,7 @@ class FriendsController extends GetxController {
           'Success',
           'Request rejected',
           snackPosition: SnackPosition.TOP,
-          
+
           duration: const Duration(seconds: 2),
         );
 
