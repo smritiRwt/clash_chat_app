@@ -30,7 +30,7 @@ class _FriendsTabState extends State<FriendsTab>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
 
     // Load friends tab data on startup
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -129,7 +129,7 @@ class _FriendsTabState extends State<FriendsTab>
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Text('Requests'),
-                            if (controller.pendingRequests.isNotEmpty) ...[
+                            if (controller.pendingRequests.isNotEmpty || controller.sentRequests.isNotEmpty) ...[
                               const SizedBox(width: 6),
                               Container(
                                 padding: const EdgeInsets.symmetric(
@@ -137,42 +137,11 @@ class _FriendsTabState extends State<FriendsTab>
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.red,
+                                  color: controller.pendingRequests.isNotEmpty ? Colors.red : Colors.orange,
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
-                                  controller.pendingRequests.length.toString(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                    Tab(
-                      child: Obx(
-                        () => Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text('Sent'),
-                            if (controller.sentRequests.isNotEmpty) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  controller.sentRequests.length.toString(),
+                                  (controller.pendingRequests.length + controller.sentRequests.length).toString(),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 10,
@@ -193,7 +162,7 @@ class _FriendsTabState extends State<FriendsTab>
         ),
         body: TabBarView(
           controller: _tabController,
-          children: [_buildFriendsTab(), _buildAllUsersTab(), _buildRequestsTab(), _buildSentTab()],
+          children: [_buildFriendsTab(), _buildAllUsersTab(), _buildRequestsSentTab()],
         ),
       ),
     );
@@ -364,6 +333,94 @@ class _FriendsTabState extends State<FriendsTab>
     });
   }
   
+  Widget _buildRequestsSentTab() {
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          TabBar(
+            indicatorColor: const Color(0xFF4A90E2),
+            labelColor: const Color(0xFF4A90E2),
+            unselectedLabelColor: Colors.grey[600],
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+            tabs: [
+              Tab(
+                child: Obx(
+                  () => Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Requests'),
+                      if (controller.pendingRequests.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            controller.pendingRequests.length.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              Tab(
+                child: Obx(
+                  () => Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Sent'),
+                      if (controller.sentRequests.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            controller.sentRequests.length.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [_buildRequestsTab(), _buildSentTab()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildRequestsTab() {
     return Obx(() {
       // Loading state - show skeleton
