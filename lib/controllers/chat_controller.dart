@@ -1,6 +1,7 @@
 import 'package:chat_app/models/chat_response_model/chat_response_model.dart';
 import 'package:chat_app/services/api_client.dart';
 import 'package:chat_app/services/db_helper.dart';
+import 'package:chat_app/utils/functions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/chat_message_model.dart';
@@ -74,8 +75,8 @@ class ChatController extends GetxController {
       final content = data['content'] ?? data['message'] ?? '';
       final senderId = data['sender']?['_id'] ?? data['sender']?['id'] ?? data['senderId'] ?? '';
       final senderName = data['sender']?['username'] ?? data['sender']?['name'] ?? data['senderName'] ?? friendName;
-      final timestamp = data['createdAt'] ?? data['timestamp'];
-      
+      var timestamp = data['createdAt'] ?? data['timestamp'];
+      timestamp = Functions.convertTimestampToDateTime(timestamp); 
       // Only add message if it's from the current chat friend
       if (senderId == friendId) {
         final newMessage = ChatMessage(
