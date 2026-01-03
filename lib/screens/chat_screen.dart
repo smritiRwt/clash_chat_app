@@ -369,7 +369,7 @@ class TypingBubble extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
           child: Text(
-            ' ${friendName} is typing...',
+            ' $friendName is typing...',
             style: TextStyle(
               fontSize: 13,
               fontStyle: FontStyle.italic,

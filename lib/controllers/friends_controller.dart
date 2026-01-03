@@ -15,6 +15,7 @@ class FriendsController extends GetxController {
 
   // Observable state
   final RxList<FriendModel> friends = <FriendModel>[].obs;
+  final RxList<FriendModel> allUsers = <FriendModel>[].obs;
   final RxList<FriendRequestModel> pendingRequests = <FriendRequestModel>[].obs;
   final RxList<SentRequestModel> sentRequests = <SentRequestModel>[].obs;
   final RxBool isLoading = false.obs;
@@ -27,6 +28,9 @@ class FriendsController extends GetxController {
   final Rx<PaginationModel?> pagination = Rx<PaginationModel?>(null);
   final RxInt currentPage = 1.obs;
   final RxInt pageLimit = 20.obs;
+
+  // Current tab tracking
+  final RxInt currentTab = 0.obs; // 0: Friends, 1: All Users, 2: Requests, 3: Sent
 
   // Loading states for individual actions
   final RxMap<String, bool> actionLoading = <String, bool>{}.obs;
@@ -95,7 +99,7 @@ class FriendsController extends GetxController {
       }
 
       // Load data
-      await getAllUsers();
+      await getFriends();
       await getPendingRequests();
       await getSentRequests();
     } catch (e) {
@@ -186,7 +190,7 @@ class FriendsController extends GetxController {
   /// Get Users list
   Future<void> getAllUsers() async {
     try {
-      friends.clear();
+      allUsers.clear();
       // Reset error
       errorMessage.value = '';
       isLoading.value = true;
@@ -218,9 +222,9 @@ class FriendsController extends GetxController {
 
         if (dataList.isNotEmpty) {
           if (currentPage.value == 1) {
-            friends.value = dataList;
+            allUsers.value = dataList;
           } else {
-            friends.addAll(dataList);
+            allUsers.addAll(dataList);
           }
 
           // Parse pagination
@@ -230,33 +234,37 @@ class FriendsController extends GetxController {
             );
           }
 
-          print('✅ Friends loaded: ${friends.length}');
+          print('✅ All users loaded: ${allUsers.length}');
         } else {
-          friends.value = [];
+          allUsers.value = [];
           print('⚠️ No data in response');
         }
       } else {
-        errorMessage.value = response['message'] ?? 'Failed to load friends';
-        friends.value = [];
+        errorMessage.value = response['message'] ?? 'Failed to load all users';
+        allUsers.value = [];
       }
 
       isLoading.value = false;
     } catch (e) {
       errorMessage.value = e.toString();
       isLoading.value = false;
-      print('❌ Error getting friends: $e');
+      print('❌ Error getting all users: $e');
     }
   }
 
-  /// Search friends
+  /// Search friends or all users based on current tab
   Future<void> searchFriends(String query) async {
     try {
       // Update search query
       searchQuery.value = query;
 
-      // If query is empty, get all friends
+      // If query is empty, load appropriate list based on current tab
       if (query.trim().isEmpty) {
-        await getAllUsers();
+        if (currentTab.value == 0) {
+          await getFriends();
+        } else if (currentTab.value == 1) {
+          await getAllUsers();
+        }
         return;
       }
 
@@ -290,27 +298,49 @@ class FriendsController extends GetxController {
       if (response['success'] == true && response['data'] != null) {
         final usersData = response['data']['users'];
         if (usersData != null && usersData is List) {
-          friends.value = usersData
+          final searchResults = usersData
               .map((json) => FriendModel.fromJson(json as Map<String, dynamic>))
               .toList();
 
-          print('✅ Search results: ${friends.length}');
+          // Update the appropriate list based on current tab
+          if (currentTab.value == 0) {
+            friends.value = searchResults;
+          } else if (currentTab.value == 1) {
+            allUsers.value = searchResults;
+          }
+
+          print('✅ Search results: ${searchResults.length}');
         } else {
-          friends.value = [];
-          errorMessage.value = 'No friends found';
+          // Clear appropriate list
+          if (currentTab.value == 0) {
+            friends.value = [];
+          } else if (currentTab.value == 1) {
+            allUsers.value = [];
+          }
+          errorMessage.value = 'No users found';
           print('⚠️ No users data in search response');
         }
       } else {
-        errorMessage.value = response['message'] ?? 'No friends found';
-        friends.value = [];
+        errorMessage.value = response['message'] ?? 'No users found';
+        // Clear appropriate list
+        if (currentTab.value == 0) {
+          friends.value = [];
+        } else if (currentTab.value == 1) {
+          allUsers.value = [];
+        }
       }
 
       isLoading.value = false;
     } catch (e) {
       errorMessage.value = e.toString();
       isLoading.value = false;
-      friends.value = [];
-      print('❌ Error searching friends: $e');
+      // Clear appropriate list
+      if (currentTab.value == 0) {
+        friends.value = [];
+      } else if (currentTab.value == 1) {
+        allUsers.value = [];
+      }
+      print('❌ Error searching: $e');
     }
   }
 
@@ -333,14 +363,18 @@ class FriendsController extends GetxController {
   void clearSearch() {
     searchQuery.value = '';
     currentPage.value = 1;
-    getAllUsers();
+    if (currentTab.value == 0) {
+      getFriends();
+    } else if (currentTab.value == 1) {
+      getAllUsers();
+    }
   }
 
   /// Load next page
   Future<void> loadNextPage() async {
     if (pagination.value?.hasNextPage == true && !isLoading.value) {
       currentPage.value++;
-      await getAllUsers();
+      await getFriends();
     }
   }
 
@@ -350,17 +384,17 @@ class FriendsController extends GetxController {
         !isLoading.value &&
         currentPage.value > 1) {
       currentPage.value--;
-      await getAllUsers();
+      await getFriends();
     }
   }
 
   /// Go to specific page
   Future<void> goToPage(int page) async {
-    if (page > 0 &&
+    if (page >= 1 &&
         page <= (pagination.value?.totalPages ?? 1) &&
         !isLoading.value) {
       currentPage.value = page;
-      await getAllUsers();
+      await getFriends();
     }
   }
 
@@ -440,7 +474,7 @@ class FriendsController extends GetxController {
         print('✅ Friend request accepted');
 
         // Refresh lists
-        await getAllUsers();
+        await getFriends();
         await getPendingRequests();
 
         Get.snackbar(
@@ -490,7 +524,7 @@ class FriendsController extends GetxController {
         print('✅ Friend removed');
 
         // Refresh lists
-        await getAllUsers();
+        await getFriends();
         await getPendingRequests();
 
         Get.snackbar(
@@ -542,7 +576,7 @@ class FriendsController extends GetxController {
         print('✅ Friend request sent');
 
         // Refresh friends list
-        await getAllUsers();
+        await getFriends();
         await getSentRequests();
 
         Get.snackbar(
@@ -609,7 +643,7 @@ class FriendsController extends GetxController {
         print('✅ Friend request sent');
 
         // Refresh friends list
-        await getAllUsers();
+        await getFriends();
 
         Get.snackbar(
           'Success',
