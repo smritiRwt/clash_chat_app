@@ -130,52 +130,72 @@ class ChatScreen extends StatelessWidget {
           Expanded(
             child: GestureDetector(
               onTap: () => controller.hideEmojiPicker(),
-              child: Obx(() {
-                // Loading state - show skeleton
-                if (controller.isLoading.value && controller.messages.isEmpty) {
-                  return const MessagesListSkeleton();
-                }
+              child: Stack(
+                children: [
+                  Obx(() {
+                    if (controller.isLoading.value &&
+                        controller.messages.isEmpty) {
+                      return const MessagesListSkeleton();
+                    }
 
-                // Empty state
-                if (controller.messages.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.chat_bubble_outline,
-                          size: 64,
-                          color: Colors.grey[400],
+                    if (controller.messages.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.chat_bubble_outline,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No messages yet',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Start the conversation!',
+                              style: TextStyle(color: Colors.grey[500]),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No messages yet',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Start the conversation!',
-                          style: TextStyle(color: Colors.grey[500]),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                      );
+                    }
 
-                return ListView.builder(
-                  controller: controller.scrollController,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  itemCount: controller.messages.length,
-                  itemBuilder: (context, index) {
-                    final message = controller.messages[index];
-                    return MessageBubble(message: message);
-                  },
-                );
-              }),
+                    return ListView.builder(
+                      controller: controller.scrollController,
+                      padding: const EdgeInsets.only(
+                        top: 12,
+                        bottom: 60, // 🔥 space for typing indicator
+                      ),
+                      itemCount: controller.messages.length,
+                      itemBuilder: (context, index) {
+                        return MessageBubble(
+                          message: controller.messages[index],
+                        );
+                      },
+                    );
+                  }),
+
+                  // ================= TYPING INDICATOR =================
+                  Obx(() {
+                    if (!controller.isFriendTyping.value) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return Positioned(
+                      left: 12,
+                      bottom: 8,
+                      child: TypingBubble(friendName: controller.friendName),
+                    );
+                  }),
+                ],
+              ),
             ),
           ),
 
@@ -223,6 +243,7 @@ class ChatScreen extends StatelessWidget {
                       child: TextField(
                         controller: controller.messageController,
                         focusNode: controller.messageFocusNode,
+                        onChanged: controller.onTextChanged,
                         decoration: const InputDecoration(
                           hintText: 'Type a message...',
                           border: InputBorder.none,
@@ -325,6 +346,37 @@ class ChatScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class TypingBubble extends StatelessWidget {
+  final String friendName;
+
+  const TypingBubble({super.key, required this.friendName});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Text(
+            ' ${friendName} is typing...',
+            style: TextStyle(
+              fontSize: 13,
+              fontStyle: FontStyle.italic,
+              color: Colors.black54,
+            ),
+          ),
+        ),
       ),
     );
   }
