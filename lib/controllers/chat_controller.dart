@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:chat_app/models/chat_response_model/chat_response_model.dart';
 import 'package:chat_app/services/api_client.dart';
 import 'package:chat_app/services/db_helper.dart';
@@ -14,18 +16,19 @@ class ChatController extends GetxController {
   // Friend info from arguments
   late String friendId;
   late String friendName;
-    final ApiClient _apiClient = ApiClient();
-
+  final ApiClient _apiClient = ApiClient();
 
   // Observable state
   final RxList<ChatMessage> messages = <ChatMessage>[].obs;
   final RxBool isLoading = false.obs;
   final RxBool showEmojiPicker = false.obs;
+  final RxBool isFriendTyping = false.obs;
 
   // Controllers
   final TextEditingController messageController = TextEditingController();
   final ScrollController scrollController = ScrollController();
   final FocusNode messageFocusNode = FocusNode();
+  Timer? _typingTimer;
 
   @override
   void onInit() {
@@ -65,34 +68,72 @@ class ChatController extends GetxController {
       print('✅ Message sent confirmation: $data');
       // Optionally update message status to "sent"
     };
+
+    // typing indicator start
+    socketService.onTyping = (userId) {
+      if (userId == friendId) {
+        isFriendTyping.value = true;
+        _scrollToBottom(); // keeps typing visible
+      }
+    };
+
+    // typing indicator stop
+    socketService.onStopTyping = (userId) {
+      if (userId == friendId) {
+        isFriendTyping.value = false;
+      }
+    };
+  }
+
+  void onTextChanged(String text) {
+    if (text.isNotEmpty) {
+      socketService.emitTyping(friendId);
+    }
+
+    // Debounce stop typing
+    _typingTimer?.cancel();
+    _typingTimer = Timer(const Duration(seconds: 2), () {
+      socketService.emitStopTyping(friendId);
+    });
   }
 
   /// Handle incoming message from socket
   void _handleIncomingMessage(Map<String, dynamic> data) {
     try {
       // Parse the incoming message data
-      final messageId = data['_id'] ?? data['id'] ?? DateTime.now().millisecondsSinceEpoch.toString();
+      final messageId =
+          data['_id'] ??
+          data['id'] ??
+          DateTime.now().millisecondsSinceEpoch.toString();
       final content = data['content'] ?? data['message'] ?? '';
-      final senderId = data['sender']?['_id'] ?? data['sender']?['id'] ?? data['senderId'] ?? '';
-      final senderName = data['sender']?['username'] ?? data['sender']?['name'] ?? data['senderName'] ?? friendName;
-      var timestamp = data['createdAt'] ?? data['timestamp'];
-      timestamp = Functions.convertTimestampToDateTime(timestamp); 
+      final senderId =
+          data['sender']?['_id'] ??
+          data['sender']?['id'] ??
+          data['senderId'] ??
+          '';
+      final senderName =
+          data['sender']?['username'] ??
+          data['sender']?['name'] ??
+          data['senderName'] ??
+          friendName;
+      var timestamp = data['createdAt'];
+      timestamp = Functions.convertTimestampToDateTime(timestamp);
       // Only add message if it's from the current chat friend
       if (senderId == friendId) {
         final newMessage = ChatMessage(
           id: messageId,
           message: content,
           isMe: false, // Incoming message is from friend
-          time: timestamp != null ? DateTime.parse(timestamp) : DateTime.now(),
+          time: timestamp,
           senderName: senderName,
         );
 
         // Add to messages list
         messages.add(newMessage);
-        
+
         // Auto-scroll to bottom
         _scrollToBottom();
-        
+
         print('✅ Message added to list: ${newMessage.message}');
       }
     } catch (e) {
@@ -105,6 +146,8 @@ class ChatController extends GetxController {
     final text = messageController.text.trim();
 
     if (text.isEmpty) return;
+
+    socketService.emitStopTyping(friendId);
 
     // Create new message
     final newMessage = ChatMessage(
@@ -128,71 +171,76 @@ class ChatController extends GetxController {
     socketService.sendMessage(friendId, newMessage.message);
   }
 
- /// Load chat messages from API
-Future<void> _loadChatMessages() async {
-  try {
-    isLoading.value = true;
-    
-    final token = await getAccessToken();
-    if (token == null) {
-      print('❌ No access token found');
-      isLoading.value = false;
-      return;
-    }
+  /// Load chat messages from API
+  Future<void> _loadChatMessages() async {
+    try {
+      isLoading.value = true;
 
-    // Ensure token is set in API client
-    _apiClient.setAuthToken(token);
-    
-    // Fetch chat messages from API
-    final response = await _apiClient.getRequest(
-      '/messages/$friendId',
-      queryParameters: {'skip': 0, 'limit': 50},
-      headers: {'Authorization': 'Bearer $token'},
-    );
+      final token = await getAccessToken();
+      if (token == null) {
+        print('❌ No access token found');
+        isLoading.value = false;
+        return;
+      }
 
-    print('📥 Response Data: $response');
+      // Ensure token is set in API client
+      _apiClient.setAuthToken(token);
 
-    // Parse response - data is nested inside 'data' object
-    if (response['data'] != null && response['data']['messages'] != null) {
-      final chatResponseModel = ChatResponseModel.fromJson(response['data']);
-      
-      if (chatResponseModel.messages != null && chatResponseModel.messages!.isNotEmpty) {
-        // Convert API messages to ChatMessage model
-        messages.value = chatResponseModel.messages!.map((apiMessage) {
-          // Determine if message is from current user
-          final isMe = apiMessage.sender?.id != friendId;
-          
-          return ChatMessage(
-            id: apiMessage.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-            message: apiMessage.content ?? '',
-            isMe: isMe,
-            time: apiMessage.createdAt ?? DateTime.now(),
-            senderName: isMe ? 'Me' : (apiMessage.sender?.username ?? friendName),
-          );
-        }).toList();
-        
-        print('✅ Loaded ${messages.length} chat messages');
-        
-        // Store unread count if needed
-        if (chatResponseModel.unreadCount != null) {
-          print('📬 Unread messages: ${chatResponseModel.unreadCount}');
+      // Fetch chat messages from API
+      final response = await _apiClient.getRequest(
+        '/messages/$friendId',
+        queryParameters: {'skip': 0, 'limit': 50},
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      print('📥 Response Data: $response');
+
+      // Parse response - data is nested inside 'data' object
+      if (response['data'] != null && response['data']['messages'] != null) {
+        final chatResponseModel = ChatResponseModel.fromJson(response['data']);
+
+        if (chatResponseModel.messages != null &&
+            chatResponseModel.messages!.isNotEmpty) {
+          // Convert API messages to ChatMessage model
+          messages.value = chatResponseModel.messages!.map((apiMessage) {
+            // Determine if message is from current user
+            final isMe = apiMessage.sender?.id != friendId;
+
+            return ChatMessage(
+              id:
+                  apiMessage.id ??
+                  DateTime.now().millisecondsSinceEpoch.toString(),
+              message: apiMessage.content ?? '',
+              isMe: isMe,
+              time: apiMessage.createdAt ?? DateTime.now(),
+              senderName: isMe
+                  ? 'Me'
+                  : (apiMessage.sender?.username ?? friendName),
+            );
+          }).toList();
+
+          print('✅ Loaded ${messages.length} chat messages');
+
+          // Store unread count if needed
+          if (chatResponseModel.unreadCount != null) {
+            print('📬 Unread messages: ${chatResponseModel.unreadCount}');
+          }
+        } else {
+          messages.value = [];
+          print('⚠️ No messages found');
         }
       } else {
         messages.value = [];
-        print('⚠️ No messages found');
+        print('⚠️ Invalid response format');
       }
-    } else {
+
+      isLoading.value = false;
+    } catch (e) {
+      print('❌ Error loading chat messages: $e');
+      isLoading.value = false;
       messages.value = [];
-      print('⚠️ Invalid response format');
     }
-    
-    isLoading.value = false;
-  } catch (e) {
-    print('❌ Error loading chat messages: $e');
-    isLoading.value = false;
-    messages.value = [];
   }
-}
 
   /// Scroll to bottom of chat
   void _scrollToBottom() {
@@ -207,7 +255,7 @@ Future<void> _loadChatMessages() async {
     });
   }
 
-    /// Get access token from SQLite
+  /// Get access token from SQLite
   Future<String?> getAccessToken() async {
     try {
       DBHelper dbHelper = DBHelper();
@@ -233,6 +281,7 @@ Future<void> _loadChatMessages() async {
     showEmojiPicker.value = !showEmojiPicker.value;
     if (showEmojiPicker.value) {
       messageFocusNode.unfocus();
+      socketService.emitStopTyping(friendId);
     }
   }
 
@@ -240,6 +289,7 @@ Future<void> _loadChatMessages() async {
   void hideEmojiPicker() {
     if (showEmojiPicker.value) {
       showEmojiPicker.value = false;
+      socketService.emitStopTyping(friendId);
     }
   }
 
@@ -247,23 +297,22 @@ Future<void> _loadChatMessages() async {
   void onEmojiSelected(String emoji) {
     final text = messageController.text;
     final selection = messageController.selection;
-    
+
     // Handle invalid selection positions
     final start = selection.start >= 0 ? selection.start : text.length;
     final end = selection.end >= 0 ? selection.end : text.length;
-    
+
     final newText = text.replaceRange(start, end, emoji);
     messageController.value = TextEditingValue(
       text: newText,
-      selection: TextSelection.collapsed(
-        offset: start + emoji.length,
-      ),
+      selection: TextSelection.collapsed(offset: start + emoji.length),
     );
   }
 
   @override
   void onClose() {
     // Clear socket callbacks when controller is disposed
+    _typingTimer?.cancel();
     socketService.onMessageReceived = null;
     socketService.onMessageSent = null;
     messageController.dispose();
