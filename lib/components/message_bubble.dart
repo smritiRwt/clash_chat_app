@@ -39,17 +39,20 @@ class MessageBubble extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: message.isMe
-                  ? const Color(0xFF4A90E2).withOpacity(0.3)
-                  : Colors.black.withOpacity(0.05),
+                  ? const Color(0xFF4A90E2).withValues(alpha: 0.3)
+                  : Colors.black.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: message.isMe
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Message text
+            // ================= MESSAGE TEXT =================
             Text(
               message.message,
               style: TextStyle(
@@ -58,16 +61,27 @@ class MessageBubble extends StatelessWidget {
                 height: 1.4,
               ),
             ),
-            const SizedBox(height: 4),
-            // Timestamp
-            Text(
-              _formatTime(message.time),
-              style: TextStyle(
-                color: message.isMe
-                    ? Colors.white.withOpacity(0.8)
-                    : Colors.grey[600],
-                fontSize: 11,
-              ),
+
+            const SizedBox(height: 6),
+
+            // ================= TIME + STATUS =================
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _formatTime(message.time),
+                  style: TextStyle(
+                    color: message.isMe
+                        ? Colors.white.withOpacity(0.7)
+                        : Colors.grey[600],
+                    fontSize: 11,
+                  ),
+                ),
+                if (message.isMe) ...[
+                  const SizedBox(width: 4),
+                  _buildStatusIcon(message.status),
+                ],
+              ],
             ),
           ],
         ),
@@ -93,5 +107,29 @@ class MessageBubble extends StatelessWidget {
       // Older - show date
       return DateFormat('MMM dd, HH:mm').format(time);
     }
+  }
+
+  Widget _buildStatusIcon(String status) {
+    Color color = Colors.grey;
+    IconData icon = Icons.check;
+
+    switch (status) {
+      case 'sent':
+        icon = Icons.check;
+        color = Colors.grey;
+        break;
+
+      case 'delivered':
+        icon = Icons.done_all;
+        color = Colors.grey;
+        break;
+
+      case 'read':
+        icon = Icons.done_all;
+        color = Colors.blue; // ✅ read = blue ticks
+        break;
+    }
+
+    return Icon(icon, size: 14, color: color);
   }
 }

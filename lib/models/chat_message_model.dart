@@ -4,6 +4,7 @@ class ChatMessage {
   final bool isMe;
   final DateTime time;
   final String senderName;
+  final String status;
 
   ChatMessage({
     required this.id,
@@ -11,27 +12,19 @@ class ChatMessage {
     required this.isMe,
     required this.time,
     required this.senderName,
+    required this.status,
   });
 
-  factory ChatMessage.fromJson(Map<String, dynamic> json) {
+  ChatMessage copyWith({
+    String? status,
+  }) {
     return ChatMessage(
-      id: json['id'] ?? '',
-      message: json['message'] ?? '',
-      isMe: json['isMe'] ?? false,
-      time: json['time'] != null
-          ? DateTime.parse(json['time'])
-          : DateTime.now(),
-      senderName: json['senderName'] ?? '',
+      id: id,
+      message: message,
+      isMe: isMe,
+      time: time,
+      senderName: senderName,
+      status: status ?? this.status,
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'message': message,
-      'isMe': isMe,
-      'time': time.toIso8601String(),
-      'senderName': senderName,
-    };
   }
 }

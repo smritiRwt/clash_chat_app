@@ -55,6 +55,9 @@ class ChatController extends GetxController {
     }
   }
 
+  // Map temporary IDs to backend message IDs
+  final Map<String, String> _tempIdToBackendId = {};
+
   /// Set up socket listeners for real-time message updates
   void _setupSocketListeners() {
     // Listen for incoming messages
@@ -63,10 +66,32 @@ class ChatController extends GetxController {
       _handleIncomingMessage(data);
     };
 
-    // Listen for message sent confirmation
+    // Listen for message sent confirmation (delivered)
     socketService.onMessageSent = (data) {
       print('✅ Message sent confirmation: $data');
-      // Optionally update message status to "sent"
+      
+      if (data['_id'] != null && data['tempId'] != null) {
+        // Map temporary ID to backend ID if both exist
+        final tempId = data['tempId'].toString();
+        final backendId = data['_id'].toString();
+        _tempIdToBackendId[tempId] = backendId;
+        _updateMessageStatus(tempId, 'delivered');
+      } else if (data['content'] != null) {
+        // Fallback: match by content and find the most recent sent message
+        final content = data['content'].toString();
+        final index = messages.indexWhere((m) => 
+          m.isMe && 
+          m.message == content && 
+          m.status == 'sent'
+        );
+        
+        if (index != -1) {
+          final tempId = messages[index].id;
+          final backendId = data['_id'].toString();
+          _tempIdToBackendId[tempId] = backendId;
+          _updateMessageStatus(tempId, 'delivered');
+        }
+      }
     };
 
     // typing indicator start
@@ -83,6 +108,69 @@ class ChatController extends GetxController {
         isFriendTyping.value = false;
       }
     };
+
+    //
+    socketService.onMessageRead = (messageId) {
+      print('👁️ Message read: $messageId');
+      final backendId = messageId.toString();
+      
+      // First try to find by temporary ID (for sent messages)
+      final tempId = _tempIdToBackendId.entries
+          .firstWhere((entry) => entry.value == backendId,
+              orElse: () => MapEntry('', ''))
+          .key;
+      
+      if (tempId.isNotEmpty) {
+        _updateMessageStatus(tempId, 'read');
+      } else {
+        // If no temp ID found, try direct backend ID (for received messages)
+        _updateMessageStatus(backendId, 'read');
+      }
+    };
+  }
+
+  // void _updateMessageStatus(String messageId, String status) {
+  //   // Find the message and update its status
+  //   for (var message in messages) {
+  //     if (message.id == messageId) {
+  //       message.status = status;
+  //       break;
+  //     }
+  //   }
+  //   // Notify UI to update
+  //   messages.refresh();
+  // }
+  void _updateMessageStatus(String messageId, String status) {
+    print('🔍 Looking for message ID: $messageId');
+    print('📋 Available message IDs: ${messages.map((m) => m.id).toList()}');
+    
+    // First try direct ID match
+    var index = messages.indexWhere((m) => m.id == messageId);
+    
+    // If not found and this is a backend ID, try to find by mapping
+    if (index == -1 && _tempIdToBackendId.containsValue(messageId)) {
+      final tempId = _tempIdToBackendId.entries
+          .firstWhere((entry) => entry.value == messageId)
+          .key;
+      index = messages.indexWhere((m) => m.id == tempId);
+    }
+    
+    if (index != -1) {
+      final oldMessage = messages[index];
+      print('📝 Found message at index $index, updating status from ${oldMessage.status} to $status');
+
+      messages[index] = oldMessage.copyWith(status: status);
+      
+      messages.refresh();
+      print('✅ Message status updated to: $status for message: $messageId');
+    } else {
+      print('⚠️ Message not found: $messageId');
+      // Debug: show all messages for troubleshooting
+      for (int i = 0; i < messages.length; i++) {
+        final msg = messages[i];
+        print('📧 Message[$i]: id=${msg.id}, status=${msg.status}, isMe=${msg.isMe}');
+      }
+    }
   }
 
   void onTextChanged(String text) {
@@ -118,6 +206,8 @@ class ChatController extends GetxController {
           friendName;
       var timestamp = data['createdAt'];
       timestamp = Functions.convertTimestampToDateTime(timestamp);
+
+      print('📥 Incoming message data: $data');
       // Only add message if it's from the current chat friend
       if (senderId == friendId) {
         final newMessage = ChatMessage(
@@ -126,6 +216,7 @@ class ChatController extends GetxController {
           isMe: false, // Incoming message is from friend
           time: timestamp,
           senderName: senderName,
+          status: data['status'],
         );
 
         // Add to messages list
@@ -149,13 +240,15 @@ class ChatController extends GetxController {
 
     socketService.emitStopTyping(friendId);
 
-    // Create new message
+    // Create new message with temporary ID
+    final tempId = DateTime.now().millisecondsSinceEpoch.toString();
     final newMessage = ChatMessage(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: tempId,
       message: text,
       isMe: true,
       time: DateTime.now(),
       senderName: 'Me',
+      status: 'sent',
     );
 
     // Add to messages list
@@ -167,8 +260,17 @@ class ChatController extends GetxController {
     // Auto-scroll to bottom
     _scrollToBottom();
 
-    // Send message via socket
-    socketService.sendMessage(friendId, newMessage.message);
+    // Send message via socket with tempId
+    socketService.sendMessage(friendId, newMessage.message, tempId: tempId);
+  }
+
+  /// Mark messages as read when they are displayed
+  void markMessagesAsRead() {
+    for (var message in messages) {
+      if (!message.isMe && message.status != 'read') {
+        socketService.markMessageAsRead(message.id);
+      }
+    }
   }
 
   /// Load chat messages from API
@@ -216,6 +318,7 @@ class ChatController extends GetxController {
               senderName: isMe
                   ? 'Me'
                   : (apiMessage.sender?.username ?? friendName),
+              status: apiMessage.status ?? 'sent',
             );
           }).toList();
 

@@ -30,7 +30,7 @@ class _FriendsTabState extends State<FriendsTab>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
 
     // Add listener to refresh data when tab changes
     _tabController.addListener(() {
@@ -38,16 +38,24 @@ class _FriendsTabState extends State<FriendsTab>
         // Tab animation completed
         if(_tabController.index == 0) {
           // Friends tab selected - refresh friends
+          controller.currentTab.value = 0;
           controller.getFriends();
+          print('🔄 Refreshing friends list');
         } else if (_tabController.index == 1) {
           // All tab selected - refresh all
+          controller.currentTab.value = 1;
           controller.getAllUsers();
+          print('🔄 Refreshing all users list');
         } else if (_tabController.index == 2) {
           // Requests tab selected - refresh requests
+          controller.currentTab.value = 2;
           controller.getPendingRequests();
+          print('🔄 Refreshing pending requests');
         } else if (_tabController.index == 3) {
           // Sent tab selected - refresh sent requests
+          controller.currentTab.value = 3;
           controller.getSentRequests();
+          print('🔄 Refreshing sent requests');
         }
       }
     });
@@ -298,12 +306,12 @@ class _FriendsTabState extends State<FriendsTab>
       }
 
       // Loading state - show skeleton
-      if (controller.isLoading.value && controller.friends.isEmpty) {
+      if (controller.isLoading.value && controller.allUsers.isEmpty) {
         return const FriendsListSkeleton();
       }
 
       // Empty state
-      if (controller.friends.isEmpty) {
+      if (controller.allUsers.isEmpty) {
         return Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -312,8 +320,8 @@ class _FriendsTabState extends State<FriendsTab>
               const SizedBox(height: 16),
               Text(
                 controller.searchQuery.value.isNotEmpty
-                    ? 'No friends found'
-                    : 'No friends yet',
+                    ? 'No users found'
+                    : 'No users available',
                 style: TextStyle(
                   fontSize: 18,
                   color: Colors.grey[600],
@@ -324,7 +332,7 @@ class _FriendsTabState extends State<FriendsTab>
               Text(
                 controller.searchQuery.value.isNotEmpty
                     ? 'Try a different search'
-                    : 'Add friends to start chatting',
+                    : 'No users to display',
                 style: TextStyle(color: Colors.grey[500]),
               ),
             ],
@@ -332,14 +340,14 @@ class _FriendsTabState extends State<FriendsTab>
         );
       }
 
-      // Friends list
+      // All users list
       return RefreshIndicator(
         onRefresh: controller.refreshAllUsers,
         child: ListView.builder(
-          itemCount: controller.friends.length,
+          itemCount: controller.allUsers.length,
           padding: const EdgeInsets.symmetric(vertical: 4),
           itemBuilder: (context, index) {
-            final friend = controller.friends[index];
+            final friend = controller.allUsers[index];
             final isSearchResult = controller.searchQuery.value.isNotEmpty;
 
             return FriendTile(

@@ -78,7 +78,8 @@ class SocketService {
     });
 
     _socket!.on('message_sent', (data) {
-      print('✅ Message sent: $data');
+      print('✅ Message sent confirmation received: $data');
+      print('📋 Data keys: ${data is Map ? data.keys : 'Not a map'}');
       if (data is Map<String, dynamic>) {
         onMessageSent?.call(data);
       }
@@ -136,8 +137,8 @@ class SocketService {
     String receiverId,
     String content, {
     String messageType = 'text',
+    String? tempId,
   }) {
-    log('Sending message to: $receiverId');
     if (!_isConnected || _socket == null) {
       print('❌ Socket not connected. Cannot send message.');
       onError?.call('Socket not connected');
@@ -148,6 +149,7 @@ class SocketService {
       'receiverId': receiverId,
       'content': content,
       'messageType': messageType,
+      if (tempId != null) 'tempId': tempId,
     };
 
     print('📤 Sending message: $data');
