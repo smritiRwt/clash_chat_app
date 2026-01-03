@@ -40,91 +40,100 @@ class FriendTile extends StatelessWidget {
           ),
         ],
       ),
-      child: ListTile(
-        dense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        leading: Stack(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: friend.status == "online"
-                      ? [const Color(0xFF4A90E2), const Color(0xFF6C63FF)]
-                      : [Colors.grey[400]!, Colors.grey[500]!],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color:
-                        (friend.status == "online"
-                                ? const Color(0xFF4A90E2)
-                                : Colors.grey)
-                            .withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: CircleAvatar(
-                backgroundColor: Colors.transparent,
-                radius: 22,
-                backgroundImage:
-                    friend.avatar != null && friend.avatar!.isNotEmpty
-                    ? NetworkImage(friend.avatar!)
-                    : null,
-                child: friend.avatar == null || friend.avatar!.isEmpty
-                    ? Text(
-                        friend.username[0].toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      )
-                    : null,
-              ),
-            ),
-            Positioned(
-              right: 0,
-              bottom: 0,
-              child: Container(
-                width: 12,
-                height: 12,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width - 24, // Account for container margins
+        ),
+        child: ListTile(
+          dense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          leading: Stack(
+            children: [
+              Container(
                 decoration: BoxDecoration(
-                  color: friend.status == "online"
-                      ? const Color(0xFF43A047)
-                      : Colors.grey[400],
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
+                  gradient: LinearGradient(
+                    colors: friend.status == "online"
+                        ? [const Color(0xFF4A90E2), const Color(0xFF6C63FF)]
+                        : [Colors.grey[400]!, Colors.grey[500]!],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color:
                           (friend.status == "online"
-                                  ? const Color(0xFF43A047)
+                                  ? const Color(0xFF4A90E2)
                                   : Colors.grey)
-                              .withOpacity(0.5),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
+                              .withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
+                child: CircleAvatar(
+                  backgroundColor: Colors.transparent,
+                  radius: 22,
+                  backgroundImage:
+                      friend.avatar != null && friend.avatar!.isNotEmpty
+                      ? NetworkImage(friend.avatar!)
+                      : null,
+                  child: friend.avatar == null || friend.avatar!.isEmpty
+                      ? Text(
+                          friend.username[0].toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        )
+                      : null,
+                ),
               ),
-            ),
-          ],
-        ),
-        title: Text(
-          friend.username,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 15,
-            color: Color(0xFF1A1A1A),
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: friend.status == "online"
+                        ? const Color(0xFF43A047)
+                        : Colors.grey[400],
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color:
+                            (friend.status == "online"
+                                    ? const Color(0xFF43A047)
+                                    : Colors.grey)
+                                .withOpacity(0.5),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
+          title: Flexible(
+            child: Text(
+              friend.username,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+                color: Color(0xFF1A1A1A),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
 
-        trailing: _buildTrailingWidget(),
-        onTap: onTap,
+          trailing: _buildTrailingWidget(),
+          onTap: onTap,
+        ),
       ),
     );
   }

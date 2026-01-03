@@ -13,77 +13,89 @@ class MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     return Align(
       alignment: message.isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: EdgeInsets.only(
-          top: 4,
-          bottom: 4,
-          left: message.isMe ? 64 : 12,
-          right: message.isMe ? 12 : 64,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          gradient: message.isMe
-              ? const LinearGradient(
-                  colors: [Color(0xFF4A90E2), Color(0xFF6C63FF)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: message.isMe ? null : Colors.grey[200],
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(message.isMe ? 16 : 4),
-            bottomRight: Radius.circular(message.isMe ? 4 : 16),
+        child: Container(
+          margin: EdgeInsets.only(
+            top: 4,
+            bottom: 4,
+            left: message.isMe ? 64 : 12,
+            right: message.isMe ? 12 : 64,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: message.isMe
-                  ? const Color(0xFF4A90E2).withValues(alpha: 0.3)
-                  : Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: message.isMe
+                ? const LinearGradient(
+                    colors: [Color(0xFF4A90E2), Color(0xFF6C63FF)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            color: message.isMe ? null : Colors.grey[200],
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(16),
+              topRight: const Radius.circular(16),
+              bottomLeft: Radius.circular(message.isMe ? 16 : 4),
+              bottomRight: Radius.circular(message.isMe ? 4 : 16),
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: message.isMe
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // ================= MESSAGE TEXT =================
-            Text(
-              message.message,
-              style: TextStyle(
-                color: message.isMe ? Colors.white : const Color(0xFF1A1A1A),
-                fontSize: 15,
-                height: 1.4,
+            boxShadow: [
+              BoxShadow(
+                color: message.isMe
+                    ? const Color(0xFF4A90E2).withValues(alpha: 0.3)
+                    : Colors.black.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-            ),
-
-            const SizedBox(height: 6),
-
-            // ================= TIME + STATUS =================
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _formatTime(message.time),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: message.isMe
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ================= MESSAGE TEXT =================
+              Flexible(
+                child: Text(
+                  message.message,
                   style: TextStyle(
                     color: message.isMe
-                        ? Colors.white.withOpacity(0.7)
-                        : Colors.grey[600],
-                    fontSize: 11,
+                        ? Colors.white
+                        : const Color(0xFF1A1A1A),
+                    fontSize: 15,
+                    height: 1.4,
                   ),
+                  maxLines: null,
+                  overflow: TextOverflow.visible,
+                  softWrap: true,
                 ),
-                if (message.isMe) ...[
-                  const SizedBox(width: 4),
-                  _buildStatusIcon(message.status),
+              ),
+
+              const SizedBox(height: 6),
+
+              // ================= TIME + STATUS =================
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _formatTime(message.time),
+                    style: TextStyle(
+                      color: message.isMe
+                          ? Colors.white.withOpacity(0.7)
+                          : Colors.grey[600],
+                      fontSize: 11,
+                    ),
+                  ),
+                  if (message.isMe) ...[
+                    const SizedBox(width: 4),
+                    _buildStatusIcon(message.status),
+                  ],
                 ],
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );

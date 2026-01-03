@@ -32,6 +32,13 @@ class FriendsController extends GetxController {
   // Current tab tracking
   final RxInt currentTab = 0.obs; // 0: Friends, 1: All Users, 2: Requests, 3: Sent
 
+  // Tab loading state tracking
+  final RxMap<int, bool> tabLoaded = <int, bool>{}.obs;
+  final RxMap<int, DateTime> lastRefreshTime = <int, DateTime>{}.obs;
+  
+  // Cache duration - data considered stale after 5 minutes
+  static const Duration _cacheDuration = Duration(minutes: 5);
+
   // Loading states for individual actions
   final RxMap<String, bool> actionLoading = <String, bool>{}.obs;
   final RxMap<String, bool> acceptLoading = <String, bool>{}.obs;
@@ -41,6 +48,49 @@ class FriendsController extends GetxController {
   /// Check if an action is loading for a specific friend
   bool isActionLoading(String friendId) {
     return actionLoading[friendId] ?? false;
+  }
+
+  /// Check if tab data is stale and needs refresh
+  bool _isDataStale(int tabIndex) {
+    final lastTime = lastRefreshTime[tabIndex];
+    if (lastTime == null) return true;
+    return DateTime.now().difference(lastTime) > _cacheDuration;
+  }
+
+  /// Check if tab needs to be loaded (not loaded or stale)
+  bool shouldLoadTab(int tabIndex) {
+    final isLoaded = tabLoaded[tabIndex] ?? false;
+    return !isLoaded || _isDataStale(tabIndex);
+  }
+
+  /// Mark tab as loaded with current timestamp
+  void _markTabLoaded(int tabIndex) {
+    tabLoaded[tabIndex] = true;
+    lastRefreshTime[tabIndex] = DateTime.now();
+  }
+
+  /// Force refresh a specific tab
+  Future<void> refreshTab(int tabIndex) async {
+    tabLoaded[tabIndex] = false; // Mark as not loaded
+    await loadTabData(tabIndex);
+  }
+
+  /// Load data for specific tab based on index
+  Future<void> loadTabData(int tabIndex) async {
+    switch (tabIndex) {
+      case 0: // Friends
+        await getFriends();
+        break;
+      case 1: // All Users
+        await getAllUsers();
+        break;
+      case 2: // Requests
+        await getPendingRequests();
+        break;
+      case 3: // Sent
+        await getSentRequests();
+        break;
+    }
   }
 
   /// Check if accept action is loading for a specific request
@@ -124,8 +174,7 @@ class FriendsController extends GetxController {
 
   // Get Friends List
   Future<void> getFriends() async {
-     try {
-      friends.clear();
+    try {
       // Reset error
       errorMessage.value = '';
       isLoading.value = true;
@@ -180,9 +229,12 @@ class FriendsController extends GetxController {
       }
 
       isLoading.value = false;
+      // Mark friends tab as loaded
+      _markTabLoaded(0);
     } catch (e) {
       errorMessage.value = e.toString();
       isLoading.value = false;
+      friends.value = [];
       print('❌ Error getting friends: $e');
     }
   }
@@ -245,6 +297,8 @@ class FriendsController extends GetxController {
       }
 
       isLoading.value = false;
+      // Mark all users tab as loaded
+      _markTabLoaded(1);
     } catch (e) {
       errorMessage.value = e.toString();
       isLoading.value = false;
@@ -348,16 +402,15 @@ class FriendsController extends GetxController {
   Future<void> refreshAllUsers() async {
     searchQuery.value = '';
     currentPage.value = 1;
-    await getAllUsers();
+    await refreshTab(1); // Refresh all users tab
   }
 
+  /// Refresh friends list
   Future<void> refreshFriends() async {
     searchQuery.value = '';
     currentPage.value = 1;
-    await getFriends();
+    await refreshTab(0); // Refresh friends tab
   }
-
-  
 
   /// Clear search
   void clearSearch() {
@@ -442,6 +495,8 @@ class FriendsController extends GetxController {
       }
 
       isRequestsLoading.value = false;
+      // Mark requests tab as loaded
+      _markTabLoaded(2);
     } catch (e) {
       errorMessage.value = e.toString();
       isRequestsLoading.value = false;
@@ -792,6 +847,8 @@ class FriendsController extends GetxController {
       }
 
       isSentRequestsLoading.value = false;
+      // Mark sent tab as loaded
+      _markTabLoaded(3);
     } catch (e) {
       errorMessage.value = e.toString();
       isSentRequestsLoading.value = false;

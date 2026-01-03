@@ -32,30 +32,27 @@ class _FriendsTabState extends State<FriendsTab>
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
 
-    // Add listener to refresh data when tab changes
+    // Load friends tab data on startup
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (controller.shouldLoadTab(0)) {
+        print('🔄 Loading friends tab on startup');
+        controller.loadTabData(0);
+      }
+    });
+
+    // Add listener to load data when tab changes (optimized with caching)
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         // Tab animation completed
-        if(_tabController.index == 0) {
-          // Friends tab selected - refresh friends
-          controller.currentTab.value = 0;
-          controller.getFriends();
-          print('🔄 Refreshing friends list');
-        } else if (_tabController.index == 1) {
-          // All tab selected - refresh all
-          controller.currentTab.value = 1;
-          controller.getAllUsers();
-          print('🔄 Refreshing all users list');
-        } else if (_tabController.index == 2) {
-          // Requests tab selected - refresh requests
-          controller.currentTab.value = 2;
-          controller.getPendingRequests();
-          print('🔄 Refreshing pending requests');
-        } else if (_tabController.index == 3) {
-          // Sent tab selected - refresh sent requests
-          controller.currentTab.value = 3;
-          controller.getSentRequests();
-          print('🔄 Refreshing sent requests');
+        final tabIndex = _tabController.index;
+        controller.currentTab.value = tabIndex;
+        
+        // Only load if tab hasn't been loaded or data is stale
+        if (controller.shouldLoadTab(tabIndex)) {
+          print('🔄 Loading tab $tabIndex data (cache miss or stale)');
+          controller.loadTabData(tabIndex);
+        } else {
+          print('✅ Tab $tabIndex data already cached and fresh');
         }
       }
     });
