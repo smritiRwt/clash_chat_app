@@ -248,6 +248,9 @@ class ChatController extends GetxController {
         messages.add(newMessage);
         print('➕ Message added to list: ${newMessage.message}');
 
+        // Mark messages as read when new message is received
+        markMessagesAsRead();
+
         // Auto-scroll to bottom
         _scrollToBottom();
 
@@ -305,10 +308,21 @@ class ChatController extends GetxController {
 
   /// Mark messages as read when they are displayed
   void markMessagesAsRead() {
+    print('👁️ Marking messages as read...');
+    int unreadCount = 0;
+    
     for (var message in messages) {
       if (!message.isMe && message.status != 'read') {
+        print('📧 Marking message as read: ${message.id} - "${message.message}"');
         socketService.markMessageAsRead(message.id);
+        unreadCount++;
       }
+    }
+    
+    if (unreadCount == 0) {
+      print('📭 No unread messages to mark as read');
+    } else {
+      print('✅ Marked $unreadCount messages as read');
     }
   }
 

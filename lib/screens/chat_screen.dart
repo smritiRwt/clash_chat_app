@@ -18,6 +18,8 @@ class ChatScreen extends StatelessWidget {
     // Scroll to bottom after build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       controller.scrollToBottomOnInit();
+      // Mark messages as read when chat screen opens
+      controller.markMessagesAsRead();
     });
 
     return Scaffold(
