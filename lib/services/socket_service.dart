@@ -139,8 +139,17 @@ class SocketService {
     String messageType = 'text',
     String? tempId,
   }) {
+    print('🚀 Socket Service: sendMessage called');
+    print('📱 Receiver ID: $receiverId');
+    print('💬 Content: "$content"');
+    print('🆔 Temp ID: $tempId');
+    print('🔌 Socket connected: $_isConnected');
+    print('🔌 Socket instance: $_socket');
+    
     if (!_isConnected || _socket == null) {
       print('❌ Socket not connected. Cannot send message.');
+      print('🔍 _isConnected: $_isConnected');
+      print('🔍 _socket: $_socket');
       onError?.call('Socket not connected');
       return;
     }
@@ -152,8 +161,9 @@ class SocketService {
       if (tempId != null) 'tempId': tempId,
     };
 
-    print('📤 Sending message: $data');
+    print('📤 Emitting send_message with data: $data');
     _socket!.emit('send_message', data);
+    print('✅ Message emitted successfully');
   }
 
   /// Emit typing indicator

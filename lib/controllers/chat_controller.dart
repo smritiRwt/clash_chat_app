@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:chat_app/models/chat_response_model/chat_response_model.dart';
 import 'package:chat_app/services/api_client.dart';
 import 'package:chat_app/services/db_helper.dart';
-import 'package:chat_app/utils/functions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/chat_message_model.dart';
@@ -68,17 +67,22 @@ class ChatController extends GetxController {
 
     // Listen for message sent confirmation (delivered)
     socketService.onMessageSent = (data) {
-      print('✅ Message sent confirmation: $data');
+      print('📬 Message sent confirmation received: $data');
+      print('🔍 Data keys: ${data.keys}');
+      print('🆔 Temp ID: ${data['tempId']}');
+      print('🆔 Backend ID: ${data['_id']}');
       
       if (data['_id'] != null && data['tempId'] != null) {
         // Map temporary ID to backend ID if both exist
         final tempId = data['tempId'].toString();
         final backendId = data['_id'].toString();
+        print('🔄 Mapping temp ID $tempId to backend ID $backendId');
         _tempIdToBackendId[tempId] = backendId;
         _updateMessageStatus(tempId, 'delivered');
       } else if (data['content'] != null) {
         // Fallback: match by content and find the most recent sent message
         final content = data['content'].toString();
+        print('🔍 Using fallback content matching: "$content"');
         final index = messages.indexWhere((m) => 
           m.isMe && 
           m.message == content && 
@@ -88,9 +92,14 @@ class ChatController extends GetxController {
         if (index != -1) {
           final tempId = messages[index].id;
           final backendId = data['_id'].toString();
+          print('🔄 Found message at index $index, mapping temp ID $tempId to backend ID $backendId');
           _tempIdToBackendId[tempId] = backendId;
           _updateMessageStatus(tempId, 'delivered');
+        } else {
+          print('⚠️ No matching sent message found for content: "$content"');
         }
+      } else {
+        print('⚠️ Message confirmation data missing required fields');
       }
     };
 
@@ -188,6 +197,8 @@ class ChatController extends GetxController {
   /// Handle incoming message from socket
   void _handleIncomingMessage(Map<String, dynamic> data) {
     try {
+      print('📨 Raw incoming message data: $data');
+      
       // Parse the incoming message data
       final messageId =
           data['_id'] ??
@@ -204,12 +215,26 @@ class ChatController extends GetxController {
           data['sender']?['name'] ??
           data['senderName'] ??
           friendName;
-      var timestamp = data['createdAt'];
-      timestamp = Functions.convertTimestampToDateTime(timestamp);
+      DateTime timestamp;
+      try {
+        timestamp = DateTime.parse(data['createdAt'] ?? DateTime.now().toIso8601String());
+      } catch (e) {
+        print('⚠️ Error parsing timestamp: ${data['createdAt']}, using current time');
+        timestamp = DateTime.now();
+      }
 
-      print('📥 Incoming message data: $data');
+      print('🔍 Parsed message:');
+      print('   - Message ID: $messageId');
+      print('   - Content: "$content"');
+      print('   - Sender ID: $senderId');
+      print('   - Current Friend ID: $friendId');
+      print('   - Sender Name: $senderName');
+      print('   - Timestamp: $timestamp');
+
       // Only add message if it's from the current chat friend
       if (senderId == friendId) {
+        print('✅ Message is from current friend - adding to chat');
+        
         final newMessage = ChatMessage(
           id: messageId,
           message: content,
@@ -221,14 +246,18 @@ class ChatController extends GetxController {
 
         // Add to messages list
         messages.add(newMessage);
+        print('➕ Message added to list: ${newMessage.message}');
 
         // Auto-scroll to bottom
         _scrollToBottom();
 
-        print('✅ Message added to list: ${newMessage.message}');
+        print('✅ Incoming message processed successfully');
+      } else {
+        print('⚠️ Message is from different user (sender: $senderId, friend: $friendId) - ignoring');
       }
     } catch (e) {
       print('❌ Error handling incoming message: $e');
+      print('📨 Original data that caused error: $data');
     }
   }
 
@@ -237,6 +266,10 @@ class ChatController extends GetxController {
     final text = messageController.text.trim();
 
     if (text.isEmpty) return;
+
+    print('🚀 Starting message send process...');
+    print('📱 Friend ID: $friendId');
+    print('🔌 Socket connected: ${socketService.isConnected}');
 
     socketService.emitStopTyping(friendId);
 
@@ -251,8 +284,12 @@ class ChatController extends GetxController {
       status: 'sent',
     );
 
+    print('📝 Created message with temp ID: $tempId');
+    print('💬 Message content: "$text"');
+
     // Add to messages list
     messages.add(newMessage);
+    print('➕ Message added to local list');
 
     // Clear input field
     messageController.clear();
@@ -261,7 +298,9 @@ class ChatController extends GetxController {
     _scrollToBottom();
 
     // Send message via socket with tempId
+    print('📡 Sending message via socket...');
     socketService.sendMessage(friendId, newMessage.message, tempId: tempId);
+    print('✅ Message send command completed');
   }
 
   /// Mark messages as read when they are displayed
