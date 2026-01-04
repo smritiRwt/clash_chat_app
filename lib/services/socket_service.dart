@@ -190,6 +190,17 @@ class SocketService {
     print('👁️ Marking message as read: $messageId');
   }
 
+  /// Mark message as read and notify sender
+  void markMessageAsReadAndNotify(String messageId, String senderId) {
+    if (!_isConnected || _socket == null) return;
+
+    _socket!.emit('message_read', {
+      'messageId': messageId,
+      'senderId': senderId, // Notify the original sender
+    });
+    print('👁️ Marking message as read and notifying sender: messageId=$messageId, senderId=$senderId');
+  }
+
   /// Disconnect from socket
   void disconnect() {
     if (_socket != null) {

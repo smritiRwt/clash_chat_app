@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:chat_app/models/chat_response_model/chat_response_model.dart';
 import 'package:chat_app/services/api_client.dart';
 import 'package:chat_app/services/db_helper.dart';
+import 'package:chat_app/utils/functions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/chat_message_model.dart';
@@ -46,7 +47,10 @@ class ChatController extends GetxController {
       _setupSocketListeners();
 
       // Load messages from API
-      _loadChatMessages();
+      _loadChatMessages().then((_) {
+        // Mark messages as read when chat opens
+        markMessagesAsRead();
+      });
     } catch (e) {
       print('❌ Error initializing chat: $e');
       friendId = '';
@@ -67,39 +71,27 @@ class ChatController extends GetxController {
 
     // Listen for message sent confirmation (delivered)
     socketService.onMessageSent = (data) {
-      print('📬 Message sent confirmation received: $data');
-      print('🔍 Data keys: ${data.keys}');
-      print('🆔 Temp ID: ${data['tempId']}');
-      print('🆔 Backend ID: ${data['_id']}');
-      
+      print('✅ Message sent confirmation: $data');
+
       if (data['_id'] != null && data['tempId'] != null) {
         // Map temporary ID to backend ID if both exist
         final tempId = data['tempId'].toString();
         final backendId = data['_id'].toString();
-        print('🔄 Mapping temp ID $tempId to backend ID $backendId');
         _tempIdToBackendId[tempId] = backendId;
         _updateMessageStatus(tempId, 'delivered');
       } else if (data['content'] != null) {
         // Fallback: match by content and find the most recent sent message
         final content = data['content'].toString();
-        print('🔍 Using fallback content matching: "$content"');
-        final index = messages.indexWhere((m) => 
-          m.isMe && 
-          m.message == content && 
-          m.status == 'sent'
+        final index = messages.indexWhere(
+          (m) => m.isMe && m.message == content && m.status == 'sent',
         );
-        
+
         if (index != -1) {
           final tempId = messages[index].id;
           final backendId = data['_id'].toString();
-          print('🔄 Found message at index $index, mapping temp ID $tempId to backend ID $backendId');
           _tempIdToBackendId[tempId] = backendId;
           _updateMessageStatus(tempId, 'delivered');
-        } else {
-          print('⚠️ No matching sent message found for content: "$content"');
         }
-      } else {
-        print('⚠️ Message confirmation data missing required fields');
       }
     };
 
@@ -120,20 +112,35 @@ class ChatController extends GetxController {
 
     //
     socketService.onMessageRead = (messageId) {
-      print('👁️ Message read: $messageId');
+      print('👁️ Message read event received: $messageId');
       final backendId = messageId.toString();
-      
+
       // First try to find by temporary ID (for sent messages)
       final tempId = _tempIdToBackendId.entries
-          .firstWhere((entry) => entry.value == backendId,
-              orElse: () => MapEntry('', ''))
+          .firstWhere(
+            (entry) => entry.value == backendId,
+            orElse: () => MapEntry('', ''),
+          )
           .key;
-      
+
       if (tempId.isNotEmpty) {
+        print('🔍 Found temp ID mapping: $tempId -> $backendId');
         _updateMessageStatus(tempId, 'read');
       } else {
+        print('🔍 No temp ID found, trying direct backend ID: $backendId');
         // If no temp ID found, try direct backend ID (for received messages)
         _updateMessageStatus(backendId, 'read');
+      }
+      
+      // Also try to find and update any messages that might contain this ID
+      for (int i = 0; i < messages.length; i++) {
+        final msg = messages[i];
+        if (!msg.isMe && msg.status != 'read' && 
+            (msg.id.contains(backendId) || backendId.contains(msg.id))) {
+          print('🔍 Found message by partial match: ${msg.id}');
+          _updateMessageStatus(msg.id, 'read');
+          break; // Only update the first match to avoid duplicates
+        }
       }
     };
   }
@@ -152,10 +159,10 @@ class ChatController extends GetxController {
   void _updateMessageStatus(String messageId, String status) {
     print('🔍 Looking for message ID: $messageId');
     print('📋 Available message IDs: ${messages.map((m) => m.id).toList()}');
-    
+
     // First try direct ID match
     var index = messages.indexWhere((m) => m.id == messageId);
-    
+
     // If not found and this is a backend ID, try to find by mapping
     if (index == -1 && _tempIdToBackendId.containsValue(messageId)) {
       final tempId = _tempIdToBackendId.entries
@@ -163,13 +170,27 @@ class ChatController extends GetxController {
           .key;
       index = messages.indexWhere((m) => m.id == tempId);
     }
-    
+
+    // If still not found, try partial matching (for cases where ID format differs)
+    if (index == -1) {
+      for (int i = 0; i < messages.length; i++) {
+        final msg = messages[i];
+        // Check if the message ID contains the backend ID or vice versa
+        if (msg.id.contains(messageId) || messageId.contains(msg.id)) {
+          index = i;
+          break;
+        }
+      }
+    }
+
     if (index != -1) {
       final oldMessage = messages[index];
-      print('📝 Found message at index $index, updating status from ${oldMessage.status} to $status');
+      print(
+        '📝 Found message at index $index, updating status from ${oldMessage.status} to $status',
+      );
 
       messages[index] = oldMessage.copyWith(status: status);
-      
+
       messages.refresh();
       print('✅ Message status updated to: $status for message: $messageId');
     } else {
@@ -177,7 +198,9 @@ class ChatController extends GetxController {
       // Debug: show all messages for troubleshooting
       for (int i = 0; i < messages.length; i++) {
         final msg = messages[i];
-        print('📧 Message[$i]: id=${msg.id}, status=${msg.status}, isMe=${msg.isMe}');
+        print(
+          '📧 Message[$i]: id=${msg.id}, status=${msg.status}, isMe=${msg.isMe}',
+        );
       }
     }
   }
@@ -197,8 +220,6 @@ class ChatController extends GetxController {
   /// Handle incoming message from socket
   void _handleIncomingMessage(Map<String, dynamic> data) {
     try {
-      print('📨 Raw incoming message data: $data');
-      
       // Parse the incoming message data
       final messageId =
           data['_id'] ??
@@ -215,26 +236,12 @@ class ChatController extends GetxController {
           data['sender']?['name'] ??
           data['senderName'] ??
           friendName;
-      DateTime timestamp;
-      try {
-        timestamp = DateTime.parse(data['createdAt'] ?? DateTime.now().toIso8601String());
-      } catch (e) {
-        print('⚠️ Error parsing timestamp: ${data['createdAt']}, using current time');
-        timestamp = DateTime.now();
-      }
+      var timestamp = data['createdAt'];
+      timestamp = Functions.convertTimestampToDateTime(timestamp);
 
-      print('🔍 Parsed message:');
-      print('   - Message ID: $messageId');
-      print('   - Content: "$content"');
-      print('   - Sender ID: $senderId');
-      print('   - Current Friend ID: $friendId');
-      print('   - Sender Name: $senderName');
-      print('   - Timestamp: $timestamp');
-
+      print('📥 Incoming message data: $data');
       // Only add message if it's from the current chat friend
       if (senderId == friendId) {
-        print('✅ Message is from current friend - adding to chat');
-        
         final newMessage = ChatMessage(
           id: messageId,
           message: content,
@@ -246,21 +253,18 @@ class ChatController extends GetxController {
 
         // Add to messages list
         messages.add(newMessage);
-        print('➕ Message added to list: ${newMessage.message}');
 
-        // Mark messages as read when new message is received
-        markMessagesAsRead();
+        // Mark as read since user is viewing the chat
+        print('📖 Auto-marking incoming message as read: messageId=$messageId');
+        socketService.markMessageAsRead(messageId);
 
         // Auto-scroll to bottom
         _scrollToBottom();
 
-        print('✅ Incoming message processed successfully');
-      } else {
-        print('⚠️ Message is from different user (sender: $senderId, friend: $friendId) - ignoring');
+        print('✅ Message added to list: ${newMessage.message}');
       }
     } catch (e) {
       print('❌ Error handling incoming message: $e');
-      print('📨 Original data that caused error: $data');
     }
   }
 
@@ -269,10 +273,6 @@ class ChatController extends GetxController {
     final text = messageController.text.trim();
 
     if (text.isEmpty) return;
-
-    print('🚀 Starting message send process...');
-    print('📱 Friend ID: $friendId');
-    print('🔌 Socket connected: ${socketService.isConnected}');
 
     socketService.emitStopTyping(friendId);
 
@@ -287,12 +287,8 @@ class ChatController extends GetxController {
       status: 'sent',
     );
 
-    print('📝 Created message with temp ID: $tempId');
-    print('💬 Message content: "$text"');
-
     // Add to messages list
     messages.add(newMessage);
-    print('➕ Message added to local list');
 
     // Clear input field
     messageController.clear();
@@ -301,28 +297,29 @@ class ChatController extends GetxController {
     _scrollToBottom();
 
     // Send message via socket with tempId
-    print('📡 Sending message via socket...');
     socketService.sendMessage(friendId, newMessage.message, tempId: tempId);
-    print('✅ Message send command completed');
   }
 
   /// Mark messages as read when they are displayed
   void markMessagesAsRead() {
-    print('👁️ Marking messages as read...');
-    int unreadCount = 0;
-    
+    print('🔍 markMessagesAsRead called - checking ${messages.length} messages');
     for (var message in messages) {
       if (!message.isMe && message.status != 'read') {
-        print('📧 Marking message as read: ${message.id} - "${message.message}"');
+        print('📖 Marking message as read: ID=${message.id}, status=${message.status}');
+        
+        // Store the mapping if this is a backend ID message
+        if (message.id.startsWith('_') || message.id.length == 24) {
+          // This looks like a backend ID, store it for future reference
+          _tempIdToBackendId[message.id] = message.id;
+        }
+        
         socketService.markMessageAsRead(message.id);
-        unreadCount++;
+        print('📤 Sent message_read event for: ${message.id}');
+      } else if (!message.isMe) {
+        print('⏭️ Skipping message (already read): ID=${message.id}, status=${message.status}');
+      } else {
+        print('🔒 Skipping own message: ID=${message.id}, status=${message.status}');
       }
-    }
-    
-    if (unreadCount == 0) {
-      print('📭 No unread messages to mark as read');
-    } else {
-      print('✅ Marked $unreadCount messages as read');
     }
   }
 
@@ -356,20 +353,32 @@ class ChatController extends GetxController {
         final chatsData = response['data']['chats'] as List;
         if (chatsData.isNotEmpty) {
           final chatData = chatsData.first as Map<String, dynamic>;
-          
+
           // Check if this chat has messages (might be in a different structure)
-          if (chatData.containsKey('messages') && chatData['messages'] != null) {
+          if (chatData.containsKey('messages') &&
+              chatData['messages'] != null) {
             final messagesData = chatData['messages'] as List;
-            messages.value = messagesData.map((msg) => ChatMessage(
-              id: msg['_id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
-              message: msg['content'] ?? '',
-              isMe: msg['sender']['_id'] != friendId,
-              time: DateTime.tryParse(msg['createdAt'] ?? '') ?? DateTime.now(),
-              senderName: msg['sender']['_id'] != friendId 
-                  ? friendName 
-                  : (msg['sender']['username'] ?? 'Me'),
-              status: msg['status'] ?? 'sent',
-            )).toList();
+            messages.value = messagesData
+                .map(
+                  (msg) {
+                    // Get the backend message ID
+                    final messageId = msg['_id'] ?? DateTime.now().millisecondsSinceEpoch.toString();
+                    
+                    return ChatMessage(
+                      id: messageId,
+                      message: msg['content'] ?? '',
+                      isMe: msg['sender']['_id'] != friendId,
+                      time:
+                          DateTime.tryParse(msg['createdAt'] ?? '') ??
+                          DateTime.now(),
+                      senderName: msg['sender']['_id'] != friendId
+                          ? friendName
+                          : (msg['sender']['username'] ?? 'Me'),
+                      status: msg['status'] ?? 'sent',
+                    );
+                  },
+                )
+                .toList();
           } else {
             // No messages in this chat yet
             messages.value = [];
@@ -377,7 +386,8 @@ class ChatController extends GetxController {
         } else {
           messages.value = [];
         }
-      } else if (response['data'] != null && response['data']['messages'] != null) {
+      } else if (response['data'] != null &&
+          response['data']['messages'] != null) {
         // Handle direct messages response (if API structure changes)
         final chatResponseModel = ChatResponseModel.fromJson(response['data']);
 
@@ -387,11 +397,12 @@ class ChatController extends GetxController {
           messages.value = chatResponseModel.messages!.map((apiMessage) {
             // Determine if message is from current user
             final isMe = apiMessage.sender?.id != friendId;
+            
+            // Get the backend message ID
+            final messageId = apiMessage.id ?? DateTime.now().millisecondsSinceEpoch.toString();
 
             return ChatMessage(
-              id:
-                  apiMessage.id ??
-                  DateTime.now().millisecondsSinceEpoch.toString(),
+              id: messageId,
               message: apiMessage.content ?? '',
               isMe: isMe,
               time: apiMessage.createdAt ?? DateTime.now(),
@@ -416,7 +427,8 @@ class ChatController extends GetxController {
         messages.value = [];
         print('⚠️ Invalid response format');
       }
-
+markMessagesAsRead();
+_scrollToBottom();
       isLoading.value = false;
     } catch (e) {
       print('❌ Error loading chat messages: $e');
