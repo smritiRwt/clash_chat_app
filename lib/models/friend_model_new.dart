@@ -26,6 +26,25 @@ class FriendModel {
     );
   }
 
+  /// Create a copy with updated fields
+  FriendModel copyWith({
+    String? id,
+    String? username,
+    String? email,
+    String? avatar,
+    String? status,
+    String? friendshipStatus,
+  }) {
+    return FriendModel(
+      id: id ?? this.id,
+      username: username ?? this.username,
+      email: email ?? this.email,
+      avatar: avatar ?? this.avatar,
+      status: status ?? this.status,
+      friendshipStatus: friendshipStatus ?? this.friendshipStatus,
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
       '_id': id,

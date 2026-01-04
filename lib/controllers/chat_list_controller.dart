@@ -57,19 +57,25 @@ class ChatListController extends GetxController {
       );
       
       if (response['success'] == true) {
-        final chatResponse = ChatListResponse.fromJson(response);
-        
-        if (refresh) {
-          chats.value = chatResponse.data.chats;
-        } else {
-          chats.addAll(chatResponse.data.chats);
+        try {
+          final chatResponse = ChatListResponse.fromJson(response);
+          
+          if (refresh) {
+            chats.value = chatResponse.data.chats;
+          } else {
+            chats.addAll(chatResponse.data.chats);
+          }
+          
+          total.value = chatResponse.data.total;
+          hasMore.value = chatResponse.data.hasMore;
+          currentPage.value++;
+          
+          print('✅ Chats loaded: ${chats.length}');
+        } catch (parseError) {
+          errorMessage.value = 'Failed to parse chat data: $parseError';
+          print('❌ Parse error: $parseError');
+          print('❌ Response data: $response');
         }
-        
-        total.value = chatResponse.data.total;
-        hasMore.value = chatResponse.data.hasMore;
-        currentPage.value++;
-        
-        print('✅ Chats loaded: ${chats.length}');
       } else {
         errorMessage.value = response['message'] ?? 'Failed to load chats';
         print('❌ Failed to load chats: ${response['message']}');

@@ -1,14 +1,14 @@
 class ChatListModel {
   final String friendId;
   final FriendInfo friend;
-  final LastMessage lastMessage;
+  final LastMessage? lastMessage;
   final int unreadCount;
   final DateTime updatedAt;
 
   ChatListModel({
     required this.friendId,
     required this.friend,
-    required this.lastMessage,
+    this.lastMessage,
     required this.unreadCount,
     required this.updatedAt,
   });
@@ -16,10 +16,12 @@ class ChatListModel {
   factory ChatListModel.fromJson(Map<String, dynamic> json) {
     return ChatListModel(
       friendId: json['friendId'] as String,
-      friend: FriendInfo.fromJson(json['friend'] as Map<String, dynamic>),
-      lastMessage: LastMessage.fromJson(json['lastMessage'] as Map<String, dynamic>),
-      unreadCount: json['unreadCount'] as int,
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      friend: FriendInfo.fromJson(json['friend'] as Map<String, dynamic>? ?? {}),
+      lastMessage: json['lastMessage'] != null 
+          ? LastMessage.fromJson(json['lastMessage'] as Map<String, dynamic>)
+          : null,
+      unreadCount: json['unreadCount'] as int? ?? 0,
+      updatedAt: DateTime.parse(json['updatedAt'] as String? ?? DateTime.now().toIso8601String()),
     );
   }
 }
@@ -37,8 +39,8 @@ class FriendInfo {
 
   factory FriendInfo.fromJson(Map<String, dynamic> json) {
     return FriendInfo(
-      id: json['_id'] as String,
-      username: json['username'] as String,
+      id: json['_id'] as String? ?? json['id'] as String? ?? '',
+      username: json['username'] as String? ?? '',
       avatar: json['avatar'] as String?,
     );
   }
@@ -63,12 +65,12 @@ class LastMessage {
 
   factory LastMessage.fromJson(Map<String, dynamic> json) {
     return LastMessage(
-      id: json['_id'] as String,
-      content: json['content'] as String,
-      messageType: json['messageType'] as String,
-      status: json['status'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      sender: SenderInfo.fromJson(json['sender'] as Map<String, dynamic>),
+      id: json['_id'] as String? ?? '',
+      content: json['content'] as String? ?? '',
+      messageType: json['messageType'] as String? ?? 'text',
+      status: json['status'] as String? ?? 'sent',
+      createdAt: DateTime.parse(json['createdAt'] as String? ?? DateTime.now().toIso8601String()),
+      sender: SenderInfo.fromJson(json['sender'] as Map<String, dynamic>? ?? {}),
     );
   }
 }
@@ -84,8 +86,8 @@ class SenderInfo {
 
   factory SenderInfo.fromJson(Map<String, dynamic> json) {
     return SenderInfo(
-      id: json['_id'] as String,
-      username: json['username'] as String,
+      id: json['_id'] as String? ?? json['id'] as String? ?? '',
+      username: json['username'] as String? ?? '',
     );
   }
 }
@@ -103,9 +105,9 @@ class ChatListResponse {
 
   factory ChatListResponse.fromJson(Map<String, dynamic> json) {
     return ChatListResponse(
-      success: json['success'] as bool,
-      message: json['message'] as String,
-      data: ChatListData.fromJson(json['data'] as Map<String, dynamic>),
+      success: json['success'] as bool? ?? false,
+      message: json['message'] as String? ?? '',
+      data: ChatListData.fromJson(json['data'] as Map<String, dynamic>? ?? {}),
     );
   }
 }
@@ -122,12 +124,13 @@ class ChatListData {
   });
 
   factory ChatListData.fromJson(Map<String, dynamic> json) {
+    final chatsList = json['chats'] as List? ?? [];
     return ChatListData(
-      chats: (json['chats'] as List)
-          .map((chat) => ChatListModel.fromJson(chat as Map<String, dynamic>))
+      chats: chatsList
+          .map((chat) => ChatListModel.fromJson(chat as Map<String, dynamic>? ?? {}))
           .toList(),
-      total: json['total'] as int,
-      hasMore: json['hasMore'] as bool,
+      total: json['total'] as int? ?? 0,
+      hasMore: json['hasMore'] as bool? ?? false,
     );
   }
 }

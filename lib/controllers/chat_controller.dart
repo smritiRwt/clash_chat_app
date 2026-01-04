@@ -298,7 +298,34 @@ class ChatController extends GetxController {
       print('📥 Response Data: $response');
 
       // Parse response - data is nested inside 'data' object
-      if (response['data'] != null && response['data']['messages'] != null) {
+      if (response['data'] != null && response['data']['chats'] != null) {
+        // The API returns chat data, we need to extract messages from the chat
+        final chatsData = response['data']['chats'] as List;
+        if (chatsData.isNotEmpty) {
+          final chatData = chatsData.first as Map<String, dynamic>;
+          
+          // Check if this chat has messages (might be in a different structure)
+          if (chatData.containsKey('messages') && chatData['messages'] != null) {
+            final messagesData = chatData['messages'] as List;
+            messages.value = messagesData.map((msg) => ChatMessage(
+              id: msg['_id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+              message: msg['content'] ?? '',
+              isMe: msg['sender']['_id'] != friendId,
+              time: DateTime.tryParse(msg['createdAt'] ?? '') ?? DateTime.now(),
+              senderName: msg['sender']['_id'] != friendId 
+                  ? friendName 
+                  : (msg['sender']['username'] ?? 'Me'),
+              status: msg['status'] ?? 'sent',
+            )).toList();
+          } else {
+            // No messages in this chat yet
+            messages.value = [];
+          }
+        } else {
+          messages.value = [];
+        }
+      } else if (response['data'] != null && response['data']['messages'] != null) {
+        // Handle direct messages response (if API structure changes)
         final chatResponseModel = ChatResponseModel.fromJson(response['data']);
 
         if (chatResponseModel.messages != null &&

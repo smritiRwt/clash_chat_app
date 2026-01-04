@@ -208,7 +208,7 @@ class _ChatTabState extends State<ChatTab> {
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 2),
           child: Text(
-            chat.lastMessage.content,
+            chat.lastMessage?.content ?? 'No messages yet',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(color: Colors.grey[600], fontSize: 13),
@@ -219,7 +219,9 @@ class _ChatTabState extends State<ChatTab> {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              _chatController.formatMessageTime(chat.lastMessage.createdAt),
+              chat.lastMessage != null 
+                  ? _chatController.formatMessageTime(chat.lastMessage!.createdAt)
+                  : '',
               style: TextStyle(
                 color: Colors.grey[500],
                 fontSize: 12,
