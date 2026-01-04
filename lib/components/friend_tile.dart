@@ -118,17 +118,15 @@ class FriendTile extends StatelessWidget {
               ),
             ],
           ),
-          title: Flexible(
-            child: Text(
-              friend.username,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-                color: Color(0xFF1A1A1A),
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+          title: Text(
+            friend.username,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+              color: Color(0xFF1A1A1A),
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
 
           trailing: _buildTrailingWidget(),
