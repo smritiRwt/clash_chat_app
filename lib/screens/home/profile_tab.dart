@@ -1,3 +1,4 @@
+import 'package:chat_app/utils/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
@@ -118,35 +119,35 @@ class ProfileTab extends StatelessWidget {
               ),
               const SizedBox(height: 40),
 
-              // Profile Options
-              _buildProfileOption(
-                icon: Icons.person_outline,
-                title: 'Edit Profile',
-                onTap: () {
-                  // TODO: Navigate to edit profile
-                },
-              ),
-              _buildProfileOption(
-                icon: Icons.notifications_none,
-                title: 'Notifications',
-                onTap: () {
-                  // TODO: Navigate to notifications settings
-                },
-              ),
-              _buildProfileOption(
-                icon: Icons.privacy_tip_outlined,
-                title: 'Privacy',
-                onTap: () {
-                  // TODO: Navigate to privacy settings
-                },
-              ),
-              _buildProfileOption(
-                icon: Icons.help_outline,
-                title: 'Help & Support',
-                onTap: () {
-                  // TODO: Navigate to help
-                },
-              ),
+              // // Profile Options
+              // _buildProfileOption(
+              //   icon: Icons.person_outline,
+              //   title: 'Edit Profile',
+              //   onTap: () {
+              //     // TODO: Navigate to edit profile
+              //   },
+              // ),
+              // _buildProfileOption(
+              //   icon: Icons.notifications_none,
+              //   title: 'Notifications',
+              //   onTap: () {
+              //     // TODO: Navigate to notifications settings
+              //   },
+              // ),
+              // _buildProfileOption(
+              //   icon: Icons.privacy_tip_outlined,
+              //   title: 'Privacy',
+              //   onTap: () {
+              //     // TODO: Navigate to privacy settings
+              //   },
+              // ),
+              // _buildProfileOption(
+              //   icon: Icons.help_outline,
+              //   title: 'Help & Support',
+              //   onTap: () {
+              //     // TODO: Navigate to help
+              //   },
+              // ),
               const SizedBox(height: 20),
 
               // Logout Button
@@ -157,7 +158,7 @@ class ProfileTab extends StatelessWidget {
                   icon: const Icon(Icons.logout),
                   label: const Text('Logout'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
+                    backgroundColor: Constants.buttonColor,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(

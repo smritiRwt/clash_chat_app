@@ -14,7 +14,7 @@ import 'auth_controller.dart';
 
 /// Home Controller
 /// Manages tab navigation and home screen state
-class HomeController extends GetxController {
+class HomeController extends GetxController with WidgetsBindingObserver {
   // Current tab index
   final RxInt currentIndex = 0.obs;
   final DBHelper _dbHelper = DBHelper();
@@ -30,11 +30,28 @@ class HomeController extends GetxController {
     const ProfileTab(),
   ];
 
+  // Auth controller reference
+  late AuthController _authController;
+
   @override
   void onInit() async {
     super.onInit();
+    
+    // Add observer for app lifecycle changes
+    WidgetsBinding.instance.addObserver(this);
+    
+    // Get or create AuthController
+    try {
+      _authController = Get.find<AuthController>();
+    } catch (e) {
+      _authController = Get.put(AuthController());
+    }
+    
     await createSocketConnection();
     _refreshTokenOnLoad();
+    
+    // Initialize user status
+    _initializeUserStatus();
   }
 
   /// Refresh token when HomePage loads (only once per app launch)
@@ -48,17 +65,9 @@ class HomeController extends GetxController {
     _hasRefreshedToken = true;
 
     try {
-      // Get or create AuthController
-      AuthController authController;
-      try {
-        authController = Get.find<AuthController>();
-      } catch (e) {
-        authController = Get.put(AuthController());
-      }
-
       // Always attempt to refresh token - checkAndRefreshToken will handle validation
       print('🔄 Attempting to refresh token on HomePage load...');
-      await authController.checkAndRefreshToken();
+      await _authController.checkAndRefreshToken();
     } catch (e) {
       print('❌ Error during token refresh on HomePage load: $e');
     }
@@ -80,6 +89,8 @@ class HomeController extends GetxController {
       // Get access token from DB
       final accessToken = await _dbHelper.getAccessToken();
       if (accessToken != null) {
+        // Set up socket listeners before connecting
+        _setupSocketListeners();
         socketService.connect(accessToken);
       }
     } catch (e) {
@@ -87,6 +98,104 @@ class HomeController extends GetxController {
     }
   }
 
+  /// Setup socket listeners for status updates
+  void _setupSocketListeners() {
+    // Listen for socket connection
+    socketService.onConnected = () {
+      print('✅ Socket connected - updating user status to online');
+      _updateUserStatus('online');
+    };
+
+    // Listen for socket disconnection
+    socketService.onDisconnected = () {
+      print('❌ Socket disconnected - updating user status to offline');
+      _updateUserStatus('offline');
+    };
+
+    // Listen for user online events (for other users)
+    socketService.onUserOnline = (userId) {
+      print('🟢 User $userId is now online');
+      // Here you could update a friends list if needed
+    };
+
+    // Listen for user offline events (for other users)
+    socketService.onUserOffline = (userId) {
+      print('⚫ User $userId is now offline');
+      // Here you could update a friends list if needed
+    };
+  }
+
+  /// Update current user status in database and UI
+  Future<void> _updateUserStatus(String status) async {
+    try {
+      final currentUser = _authController.currentUser.value;
+      print('🔍 Current user: ${currentUser?.username}, current status: ${currentUser?.status}, new status: $status');
+      
+      if (currentUser != null && currentUser.status != status) {
+        // Create updated user model
+        final updatedUser = currentUser.copyWith(status: status);
+        
+        // Update in database
+        await _dbHelper.updateUser(updatedUser);
+        
+        // Update in controller (this will trigger UI update)
+        _authController.currentUser.value = updatedUser;
+        
+        print('✅ User status updated to: $status for user: ${updatedUser.username}');
+      } else {
+        print('⏭️ Status unchanged or user null');
+      }
+    } catch (e) {
+      print('❌ Error updating user status: $e');
+    }
+  }
+
+  /// Initialize user status when app starts
+  void _initializeUserStatus() {
+    // Set initial status to online since the app just started
+    // The actual socket connection will update this properly
+    _updateUserStatus('online');
+  }
+
   /// Get tab count
   int get tabCount => _tabs.length;
+
+  @override
+  void onClose() {
+    // Remove observer
+    WidgetsBinding.instance.removeObserver(this);
+    
+    // Clean up socket callbacks
+    socketService.clearCallbacks();
+    socketService.disconnect();
+    super.onClose();
+  }
+
+  /// Handle app lifecycle changes
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    switch (state) {
+      case AppLifecycleState.resumed:
+        print('📱 App resumed - updating status to online');
+        _updateUserStatus('online');
+        break;
+      case AppLifecycleState.paused:
+        print('⏸️ App paused - updating status to offline');
+        _updateUserStatus('offline');
+        break;
+      case AppLifecycleState.detached:
+        print('🔌 App detached - updating status to offline');
+        _updateUserStatus('offline');
+        break;
+      case AppLifecycleState.inactive:
+        // App is inactive but still visible
+        break;
+      case AppLifecycleState.hidden:
+        print('🙈 App hidden - updating status to offline');
+        _updateUserStatus('offline');
+        break;
+    }
+  }
 }
